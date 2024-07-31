@@ -324,8 +324,22 @@ TVector3 rotateD(TVector3 epsilon, double angle_iceflow, TVector3 D) {
     
 }
 
-double getDeltaN(int BIAXIAL,vector<double> nvec,TVector3 rhat,double angle_iceflow, double &n_e1, double &n_e2,TVector3 &p_e1,TVector3 &p_e2, par_fit) {                   
-                                                                                                                                                                   
+double getDeltaN(int BIAXIAL,vector<double> nvec,TVector3 rhat,double angle_iceflow, double &n_e1, double &n_e2,TVector3 &p_e1,TVector3 &p_e2, const Double_t* par_fit) {                   
+
+// Define the zenith and azimuth angles (in radians)
+     double gamma = -par_fit[0]*(PI/180); //rotate along x
+     double theta = -par_fit[1]*(PI/180); //rotate along y
+     double phi = -par_fit[2]*(PI/180); //rotate along z
+
+// Create rotation matrices
+     TRotation rotation;
+     rotation.RotateZ(phi); // Rotate around Z-axis
+     rotation.RotateY(theta);  // Rotate around Y-axis
+     rotation.RotateX(gamma); // Rotate around X-axis by beta
+
+// Apply the rotations to the vector
+//    rhat.Transform(rotation);
+
   int FLIPPED=0;                                                                                                                                                   
   
   if (rhat[2]<0.) {                                                                                                                                                
@@ -371,7 +385,8 @@ double getDeltaN(int BIAXIAL,vector<double> nvec,TVector3 rhat,double angle_icef
     rhat_iceflowalongx[i]=sum;
   }
 
-
+//Add rotation here
+  rhat_iceflowalongx.Transform(rotation);
 
   TVector3 nominal_pe1=myz.Cross(rhat_iceflowalongx);
 

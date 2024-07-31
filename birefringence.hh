@@ -1,5 +1,5 @@
 double getDeltaN(int BIAXIAL,vector<double> nvec,TVector3 rhat,double angle_iceflow,
-                 double &n_e1, double &n_e2,TVector3 &p_e1,TVector3 &p_e2); // finds indices of refraction of two rays and unit vectors in the direction of the eigenvectors of D
+                 double &n_e1, double &n_e2,TVector3 &p_e1,TVector3 &p_e2, const Double_t* par_fit); // finds indices of refraction of two rays and unit vectors in the direction of the eigenvectors of D
 TVector3 rotateD(TVector3 epsilon, double angle_iceflow, TVector3 D); // given D, outputs E, given the epsilon tensor.
 void getManyAnglesontheClock(int BIAXIAL,double crosspolangle_tx,
                              TVector3 rhat_thisstep,

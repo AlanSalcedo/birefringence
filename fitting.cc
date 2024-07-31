@@ -176,7 +176,7 @@ int main(int argc, char** argv) {
     extractPsi(A4_filename, A4_pulserDepth, A4_psi_median, A4_nEntries);
 
     int Station_Fit = 4;
-    Double_t par_fit[4] = {0.0, 10.0, 0.0, -5.0};
+    Double_t par_fit[4] = {0.0, 0.0, 0.0, 0.0}; //phi, theta, gamma, delta (x-pol)
 
     std::cout << "TESTING WORKING ASG" << std::endl;
     Double_t* psi_median_model = nullptr;
