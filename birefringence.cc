@@ -324,7 +324,7 @@ TVector3 rotateD(TVector3 epsilon, double angle_iceflow, TVector3 D) {
     
 }
 
-double getDeltaN(int BIAXIAL,vector<double> nvec,TVector3 rhat,double angle_iceflow, double &n_e1, double &n_e2,TVector3 &p_e1,TVector3 &p_e2) {                   
+double getDeltaN(int BIAXIAL,vector<double> nvec,TVector3 rhat,double angle_iceflow, double &n_e1, double &n_e2,TVector3 &p_e1,TVector3 &p_e2, par_fit) {                   
                                                                                                                                                                    
   int FLIPPED=0;                                                                                                                                                   
   

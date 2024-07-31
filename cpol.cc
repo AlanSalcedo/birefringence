@@ -8,6 +8,7 @@
 // try changing axes to see if it could be interference between other two
 // ray bending
 
+#include <omp.h>
 #include "TH1.h"
 #include "TH2.h"
 #include "TF1.h"
@@ -27,6 +28,9 @@
 #include "TStyle.h"
 #include "TVector3.h"
 #include "TVector2.h"
+#include "TRotation.h"
+#include <vector>
+#include <limits>
 //#include "units.h"
 //#include "raytracing_tools.h"
 #include "/users/PAS0654/osu6665/cpol/IceRayTracing-master/IceRayTracing.h"
@@ -86,7 +90,7 @@ void getAnglesontheClock(TVector3 rhat_thisstep1, TVector3 rhat_thisstep2,
 			 double &theta_e1,double &theta_e2,
 			 double &p_e1_thetacomponent,double &p_e2_thetacomponent,
 			 double &p_e1_phicomponent,double &p_e2_phicomponent);
-/*
+
 double getDeltaN(int BIAXIAL,vector<double> nvec,TVector3 rhat,double angle_iceflow, 
 		 double &n_e1, double &n_e2,TVector3 &p_e1,TVector3 &p_e2);
 */
@@ -105,8 +109,54 @@ TVector3 rotateE(TVector3 epsilon, double angle_iceflow, TVector3 E);
 //void thetastoEpsilons(double thetaE_e1_Sclock,double thetaE_e2_Sclock,
 //			double &epsilon1,double &epsilon2);
 
+// Function to get the value of epsilon at a specific depth using linear interpolation
+double getEpsilonAtDepth(TGraph* graph, double depth) {
+    int num_points = graph->GetN();
+    double epsilon = std::numeric_limits<double>::quiet_NaN();
+    
+    if (num_points < 2) {
+        std::cerr << "Error: Not enough points for interpolation." << std::endl;
+        return epsilon;
+    }
 
-int main(int argc, char** argv) {  
+    // Iterate to find the interval where the depth lies
+    for (int j = 0; j < num_points - 1; ++j) {
+        double d1, epsilon1;
+        double d2, epsilon2;
+        graph->GetPoint(j, d1, epsilon1);
+        graph->GetPoint(j + 1, d2, epsilon2);
+
+//	cout << "d1: " << d1 << endl;	
+//	cout << "d2: " << d2 << endl;	
+
+        if (-d1 <= depth && depth <= -d2) {
+            // Perform linear interpolation
+            double t = (depth - (-d1)) / ((-d2) - (-d1));
+            epsilon = epsilon1 + t * (epsilon2 - epsilon1);
+            break;
+        }
+    }
+
+    return epsilon;
+}
+
+// Function to compute epsilon differences for specified station and depths
+std::vector<Double_t> computeEpsilonDifferences(TGraph* gepsilon1_tx, TGraph* gepsilon1_rx, const Double_t* fit_depths, int num_depths) {
+    std::vector<Double_t> epsilon_differences;
+    for (int i = 0; i < num_depths; ++i) {
+        Double_t depth = fit_depths[i];
+	cout << "depths: " << depth << endl;
+        double epsilon_tx = getEpsilonAtDepth(gepsilon1_tx, depth);
+	cout << "epsilon_tx: " << epsilon_tx << endl;
+        double epsilon_rx = getEpsilonAtDepth(gepsilon1_rx, depth);
+        epsilon_differences.push_back(epsilon_tx - epsilon_rx);
+    }
+    return epsilon_differences;
+}
+
+
+int psiModel(int argc, char** argv, const Double_t* par_fit, Double_t* &fit_depths, Double_t* &psi_median_model, int Station_Fit, Long64_t num_entries_fit) {  
+
 
 
   TVector3 inverse_epsilon;
@@ -183,8 +233,8 @@ int main(int argc, char** argv) {
   char clswitch; // command line switch
 
   double freq=160.E6; // what frequency are we using 
-  int CROSSPOLANGLE_TX_INT=7;
-  int CROSSPOLANGLE_RX_INT=-7;
+  int CROSSPOLANGLE_TX_INT=par_fit[3];
+  int CROSSPOLANGLE_RX_INT=-par_fit[3];
   int BIAXIAL=1; // if this is zero then it's uniaxial.  if it is -1 then it is isotropic.  the -1 option doesn't work yet. 
   int CONSTANTINDICATRIX=0; // try out making the indicatrix constant with depth and see which effects are still there.   default is zero.
 
@@ -255,9 +305,9 @@ int main(int argc, char** argv) {
     {41153.,50381.75}
   };
 
-  cout << "station_coords of ARIANNA is " << station_coords[5][0] << "\t" << station_coords[5][1] << "\n";
+  //cout << "station_coords of ARIANNA is " << station_coords[5][0] << "\t" << station_coords[5][1] << "\n";
   for (int i=0;i<NSTATIONS;i++) {
-    cout << "distance to station " << i+1 << " is " << sqrt((station_coords[i][0]-pulser_coords[0])*(station_coords[i][0]-pulser_coords[0]) + (station_coords[i][1]-pulser_coords[1])*(station_coords[i][1]-pulser_coords[1]))*MFT << "\n"; 
+    //cout << "distance to station " << i+1 << " is " << sqrt((station_coords[i][0]-pulser_coords[0])*(station_coords[i][0]-pulser_coords[0]) + (station_coords[i][1]-pulser_coords[1])*(station_coords[i][1]-pulser_coords[1]))*MFT << "\n"; 
     }
   for (int j=0;j<2;j++) {
     pulser_coords[j]=pulser_coords[j]*MFT;
@@ -282,7 +332,7 @@ int main(int argc, char** argv) {
   double deltan_exp[6];
   double deltan_obs[6];
   double station[6]={1,2,3,4,5,6};
-  double station_depths[6]={-80.,-180.,-180.,-180.,-180.,-1.}; // always forget which is 100m.
+  double station_depths[6]={-80.,-196.,-180.,-180.,-180.,-1.}; // always forget which is 100m.
   double zeroes[6]={0.};
   double deltan_obs_err[6]={0.};
   
@@ -314,7 +364,7 @@ int main(int argc, char** argv) {
     if (thisalpha<-1.*PI)
       thisalpha+=2.*PI;
     alpha[i]=thisalpha;
-    cout << "A" << i+1 << ": angle_thisstation, angle_iceflow, alpha are " << angle_thisstation*DEGRAD << "\t" << angle_iceflow*DEGRAD << "\t" << alpha[i]*DEGRAD << ".\n";
+    //cout << "A" << i+1 << ": angle_thisstation, angle_iceflow, alpha are " << angle_thisstation*DEGRAD << "\t" << angle_iceflow*DEGRAD << "\t" << alpha[i]*DEGRAD << ".\n";
     
     alpha_deg[i]=alpha[i]*DEGRAD;
 
@@ -324,7 +374,7 @@ int main(int argc, char** argv) {
     double n_e2;
     //    deltan_exp[i]=getDeltaN(alpha[i]);
     deltan_exp[i]=getDeltaN(BIAXIAL,nvec,pulsertostationhat_specialdepth[i],angle_iceflow,
-			    n_e1,n_e2,p_e1,p_e2);
+			    n_e1,n_e2,p_e1,p_e2, par_fit);
     //cout << "alpha, deltan_exp are " << alpha[i]*DEGRAD << "\t" << deltan_exp[i] << "\n";    
     //cout << "for alpha=PI/2, deltan is " << getDeltaN(PI/2.) << "\n";
 
@@ -714,10 +764,10 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 
   }
 
-  cout << "sizes are " << n1vec.size() << "\t" << n2vec.size() << "\t" << n3vec.size() << "\n";
-  cout << "n's are \n";
+  //cout << "sizes are " << n1vec.size() << "\t" << n2vec.size() << "\t" << n3vec.size() << "\n";
+  //cout << "n's are \n";
   for (int i=0;i<NDEPTHS_NS;i++) {
-    cout << "n1, n2, n3 are " << n1vec[i] << "\t" << n2vec[i] << "\t" << n3vec[i] << "\n";
+    //cout << "n1, n2, n3 are " << n1vec[i] << "\t" << n2vec[i] << "\t" << n3vec[i] << "\n";
   }
 
 
@@ -782,6 +832,11 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
   }
   n3vec=tmp;
 
+  //cout << "Smooth sizes are " << n1vec.size() << "\t" << n2vec.size() << "\t" << n3vec.size() << "\n";
+  //cout << "Smooth n's are \n";
+  for (int i=0;i<NDEPTHS_NS;i++) {
+    //cout << "n1, n2, n3 are " << n1vec[i] << "\t" << n2vec[i] << "\t" << n3vec[i] << "\n";
+  }
 
   TGraph *gn1=new TGraph(n1vec.size(),&vdepths_n1[0],&n1vec[0]);
   TGraph *gn2=new TGraph(n2vec.size(),&vdepths_n2[0],&n2vec[0]);
@@ -980,7 +1035,7 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
   if (WHICHPOL==0) {
     if (davea5file.is_open())
       {
-	cout << "i'm reading dave's a5 file.\n";
+	//cout << "i'm reading dave's a5 file.\n";
 	for (int i=0;i<NSHOTS;i++) {
 	  //cout << "i'm here. \n";
 	  int this_station, this_day, this_pol;
@@ -1295,6 +1350,7 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
     
     int jmin[NSTATIONS];
     //    for (int i=0;i<NSTATIONS;i++) {
+    #pragma omp parallel for
     for (int i=minstation;i<=maxstation;i++) {
     vmag_atten_beam[i].resize(vdepth[i].size());
     vmag_atten_beam_crosspol[i].resize(vdepth[i].size());
@@ -1320,7 +1376,7 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
       //cout << "thisdistance, mindistance, vpseudodepths_bigpic are " << thisdistance << "\t" << mindistance << "\t" << vpseudodepths_bigpic[i][vpseudodepths_bigpic[i].size()-1] << "\n";
     }
 
-
+//cout << "station: " << i +1 << endl;
 
     
     f1[i]=new TF1("f1",sfunc.c_str(),-2000.,-100.);
@@ -1328,7 +1384,7 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
     f1_nointerference[i]=new TF1("f1_nointerference",sfunc_nointerference.c_str(),-2000.,-100.);
 
     //cout << "length for station " << i << " is " << vdepth[i].size() << "\n";
-  
+    #pragma omp parallel for 
     for (int idepth=0;idepth<vdepth[i].size();idepth++) {
 
       //      cout << "idepth is " << idepth << "\n";
@@ -1371,6 +1427,10 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
       double x1=posstation[0];
       double z1=posstation[1];
 
+//cout << "\nz0 pos pulser: " << pospulser[1] << endl;
+//cout << "x1 posstation: " << posstation[0] << endl;
+//cout << "z1 posstation: " << posstation[1] << endl;
+//cout << "Station: " << i + 1 << endl;
       //      cout << "z0, x1, z1 are " << z0 << "\t" << x1 << "\t" << z1 << "\n";
 
       
@@ -1397,7 +1457,11 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 	receive_angle=paramsd[0]/DEGRAD;
 	GetFullDirectRayPath(z0, x1, z1, paramsd[3], res, zs);
       }
-      else if (getresults[8]!=1000) {
+//cout << "station: " << i << endl;
+//cout << "pulser depth: " << z0 << endl;
+//cout << "launch angle: " << paramsd[1] << endl;
+ 
+      else if (getresults[8]!=1000) {   										//TYPO? "-1000" instead
 	//	paramsd=GetDirectRayPar(z0,x1,z1);
 	paramsre=GetReflectedRayPar(z0, x1 ,z1);
 	double LangR=paramsre[1];
@@ -1409,7 +1473,7 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 	GetFullRefractedRayPath(z0, x1, z1, paramsra[7], paramsra[3], res, zs);
 	// need to get fullrefractedraypath
       }
-      else if (getresults[7]!=1000) {
+      else if (getresults[7]!=1000) {											//SAME HERE?
 	//      	paramsd=GetDirectRayPar(z0,x1,z1);
 	paramsre=GetReflectedRayPar(z0, x1 ,z1);
 	double LangR=paramsre[1];
@@ -1451,7 +1515,7 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
       double sumlength=0.;
       double sumphase=0.;
       //if (solutions.size()>0) {
-      if (getresults[6]!=-1000 || getresults[8]!=-1000 || getresults[7]!=0) {
+      if (getresults[6]!=-1000 || getresults[8]!=-1000 || getresults[7]!=0) {						//IF DIRECT OR REFRACTED!
 	//      cout << "attenuation length is " << get_attenuation_length(zs[0],freq/1.E9,1) << "\n";
 
 	//	atten=get_attenuation_along_path(pospulser, posstation, solutions[0][1],
@@ -1486,15 +1550,17 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 
 	TVector3 rhat_thisstep;
 
-	rhat_thisstep[0]=-1.*(res[UZAIRSTEP]-res[0])*yhat[0];
+	rhat_thisstep[0]=-1.*(res[UZAIRSTEP]-res[0])*yhat[0];				//I DO NOT UNDERSTAND IT - SAD
 	rhat_thisstep[1]=-1.*(res[UZAIRSTEP]-res[0])*yhat[1];
 	rhat_thisstep[2]=-1.*(zs[UZAIRSTEP]-zs[0]);
 
+//cout << "rhat_thisstep: "<< rhat_thisstep[0] << ", " << rhat_thisstep[1] << ", " <<rhat_thisstep[2] << endl;
+
 	if (rhat_thisstep.Mag()<1.E-8)
 	  cout << "before calling getDeltaN at place 1, rhat_thisstep is " << rhat_thisstep[0] << "\t" << rhat_thisstep[1] << "\t" << rhat_thisstep[2] << "\n";
-	double deltan_alongpath=getDeltaN(BIAXIAL,nvec_thisstep,rhat_thisstep,angle_iceflow,n_e1,n_e2,p_e1,p_e2);
+	double deltan_alongpath=getDeltaN(BIAXIAL,nvec_thisstep,rhat_thisstep,angle_iceflow,n_e1,n_e2,p_e1,p_e2, par_fit);
 
-	
+//cout << "deltan_alongpath" << deltan_alongpath << endl;
 	
 
 
@@ -1515,7 +1581,7 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 	double theta_e1_start=0.;
 	double notflipped=1.;
 
-
+//	#pragma omp parallel for
 	for (int istep=UZAIRSTEP;istep<res.size();istep+=UZAIRSTEP) {
 	  
 	  nvec_thisstep.resize(3);
@@ -1530,35 +1596,40 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 	    rhat_thisstep[0]=-1.*(res[istep]-res[istep-UZAIRSTEP])*yhat[0];
 	    rhat_thisstep[1]=-1.*(res[istep]-res[istep-UZAIRSTEP])*yhat[1];
 	    rhat_thisstep[2]=-1.*(zs[istep]-zs[istep-UZAIRSTEP]);
+//cout << "istep: " << istep << endl;
+//cout << "rhat_thisstep: "<< rhat_thisstep[0] << ", " << rhat_thisstep[1] << ", " <<rhat_thisstep[2] << endl;
+//cout << "res: " << res[istep] << endl;
+//cout << "zs: " << zs[istep] << endl;
 
 	    if (i==0 && idepth==g_idepth[i]->Eval(-1000.)) {
 	      if (istep==50) {
-		cout << "receive angle is " << rhat_thisstep.Theta()*DEGRAD << "\n";
-		cout << "recieve vector is " << res[istep-50]-res[istep] << "\t" << zs[istep-50]-zs[istep] << "\n";
+		//cout << "receive angle is " << rhat_thisstep.Theta()*DEGRAD << "\n";
+		//cout << "recieve vector is " << res[istep-50]-res[istep] << "\t" << zs[istep-50]-zs[istep] << "\n";
 		TVector3 v3dtemp(-1.*(zs[istep-50.]-zs[istep])/500.,0.,(res[istep-50.]-res[istep])/500.);
 		if (v3dtemp.Mag()<HOWSMALLISTOOSMALL)
 		  cout << "v3dtemp is " << v3dtemp.Mag() << "\n";
 		v3dtemp.SetMag(0.075);
-		cout << "polarization vector is " << v3dtemp[0] << "\t" << v3dtemp[2] << "\n";
+		//cout << "polarization vector is " << v3dtemp[0] << "\t" << v3dtemp[2] << "\n";
 	      }
 	      if (abs((double)(istep-(int)res.size()))<=50) {
 
-		cout << "launch angle is " << rhat_thisstep.Theta()*DEGRAD << "\n";
-		cout << "launch vector is " << res[istep-50]-res[istep] << "\t" << zs[istep-50]-zs[istep] << "\n";
+	//	cout << "launch angle is " << rhat_thisstep.Theta()*DEGRAD << "\n";
+	//
+	//cout << "launch vector is " << res[istep-50]-res[istep] << "\t" << zs[istep-50]-zs[istep] << "\n";
 		TVector3 v3dtemp(-1.*(zs[istep-50.]-zs[istep])/500.,0.,(res[istep-50.]-res[istep])/500.);
 		if (v3dtemp.Mag()<HOWSMALLISTOOSMALL)
 		  cout << "v3dtemp is " << v3dtemp.Mag() << "\n";
 		v3dtemp.SetMag(0.075);
-		cout << "polarization vector is " << v3dtemp[0] << "\t" << v3dtemp[2] << "\n";
+	//	cout << "polarization vector is " << v3dtemp[0] << "\t" << v3dtemp[2] << "\n";
 	      }
-	      if (istep%50==0)
-		cout << "\\draw[very thick] (" << res[istep-50]/1000. << ",0.," << zs[istep-50]/1000. << ") -- (" << res[istep]/1000. << ",0.," << zs[istep]/1000. << ");\n";
-	      //	      cout << "zs, res this are " << zs[istep] << "\t" << res[istep] << "\n";
+	      if (istep%50==0){
+	//	cout << "\\draw[very thick] (" << res[istep-50]/1000. << ",0.," << zs[istep-50]/1000. << ") -- (" << res[istep]/1000. << ",0.," << zs[istep]/1000. << ");\n";
+	      }//	      cout << "zs, res this are " << zs[istep] << "\t" << res[istep] << "\n";
 	      //cout << "zs, res previous are " << zs[istep-1] << "\t" << res[istep-1] << "\n";
 	    }
 
 	    double length=rhat_thisstep.Mag();
-    
+//cout << "rhat length: " << length << endl;
 	    if (rhat_thisstep.Mag()<HOWSMALLISTOOSMALL)
 	      cout << "rhat_thisstep mag is " << rhat_thisstep.Mag() << "\n";
 
@@ -1573,8 +1644,9 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 	    
 	    if (rhat_thisstep.Mag()<1.E-8)
 	      cout << "before calling getDeltaN at place 2, rhat_thisstep is " << rhat_thisstep[0] << "\t" << rhat_thisstep[1] << "\t" << rhat_thisstep[2] << "\n";
-	    deltan_alongpath=getDeltaN(BIAXIAL,nvec_thisstep,rhat_thisstep,angle_iceflow,n_e1,n_e2,p_e1,p_e2);
+	    deltan_alongpath=getDeltaN(BIAXIAL,nvec_thisstep,rhat_thisstep,angle_iceflow,n_e1,n_e2,p_e1,p_e2, par_fit);
 	    //cout << "deltan_alongpath 1 is " << deltan_alongpath << "\n";
+//cout << "deltan_alongpath: " << deltan_alongpath << endl;
 	    if (p_e2.Mag()<HOWSMALLISTOOSMALL) 
 	      cout << "2, p_e2 is " << p_e2.Mag() << "\n";
 
@@ -1664,36 +1736,36 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 	      if (i==0 && idepth==g_idepth[i]->Eval(-1000.) ||
 		  i==5 && idepth==g_idepth[i]->Eval(-400.)) {
 
-		cout << "At Tx:\n";
-		cout << "A" << i+1 << ", depth is " << vdepth[i][idepth] << "\n";
+	//	cout << "At Tx:\n";
+	//	cout << "A" << i+1 << ", depth is " << vdepth[i][idepth] << "\n";
 		// yhat is the intersection of the horizontal plane and the plane of the ray (remember ray is always tangent to k-hat)
-		cout << "angle of yhat is " << angle_yhat << "\n";
+	//	cout << "angle of yhat is " << angle_yhat << "\n";
 		//cout << "alpha is " << alpha[i] << "\n";
 
-		cout << "p_e1 is " << p_e1[0] << "\t" << p_e1[1] << "\t" << p_e1[2] << "\n";
-		cout << "mag of p_e1 is " << p_e1.Mag() << "\n";
-		cout << "p_e2 is " << p_e2[0] << "\t" << p_e2[1] << "\t" << p_e2[2] << "\n";
-		cout << "mag of p_e2 is " << p_e2.Mag() << "\n";
-		cout << "dot product is " << p_e1[0]*p_e2[0]+p_e1[1]*p_e2[1]+p_e1[2]*p_e2[2] << "\n";
-		cout << "epsilon is " << epsilon_thisstep[0] << "\t" << epsilon_thisstep[1] << "\t" << epsilon_thisstep[2] << "\n";
-		cout << "E_e1 is " << E_e1[0] << "\t" << E_e1[1] << "\t" << E_e1[2] << "\n";
-		cout << "mag of E_e1 is " << E_e1.Mag() << "\n";
-		cout << "E_e2 is " << E_e2[0] << "\t" << E_e2[1] << "\t" << E_e2[2] << "\n";
-		cout << "mag of E_e2 is " << E_e2.Mag() << "\n";
-		cout << "theta component of e1: " << E_e1_thetacomponent << "\t theta component of e2: " << E_e2_thetacomponent << "\n";
-		cout << "phi component of e1: " << E_e1_phicomponent << "\t phi component of e2: " << E_e2_phicomponent << "\n";
-		cout << "dot product is " << E_e1[0]*E_e2[0]+E_e1[1]*E_e2[1]+E_e1[2]*E_e2[2] << "\n";
-		cout << "theta_e1, theta_e2 are " << theta_e1 << "\t" << theta_e2 << "\n";
-		cout << "diff is " << (theta_e1-theta_e2)*DEGRAD << "\n";
-		cout << "thetaE_e1, thetaE_e2 are " << thetaE_e1 << "\t" << thetaE_e2 << "\n";
-		cout << "diff is " << (thetaE_e1-thetaE_e2)*DEGRAD << "\n";
-		cout << "thetas on the Sclock are " << thetaE_e1_Sclock*DEGRAD << "\t" << thetaE_e2_Sclock*DEGRAD << "\n";
-		cout << "diff is " << (thetaE_e1_Sclock-thetaE_e2_Sclock)*DEGRAD << "\n";
-		cout << "depth is " << vdepth[i][idepth] << "\n";
-		cout << "theta of rhat_thisstep is " << rhat_thisstep.Theta()*DEGRAD << "\n";
-		cout << "rhat_thisstep is " << rhat_thisstep[0] << "\t" << rhat_thisstep[1] << "\t" << rhat_thisstep[2] << "\n";
-		cout << "Shat_e1 is " << Shat_e1[0] << "\t" << Shat_e1[1] << "\t" << Shat_e1[2] << "\n";
-		cout << "Shat_e2 is " << Shat_e2[0] << "\t" << Shat_e2[1] << "\t" << Shat_e2[2] << "\n";
+	//	cout << "p_e1 is " << p_e1[0] << "\t" << p_e1[1] << "\t" << p_e1[2] << "\n";
+	//	cout << "mag of p_e1 is " << p_e1.Mag() << "\n";
+	//	cout << "p_e2 is " << p_e2[0] << "\t" << p_e2[1] << "\t" << p_e2[2] << "\n";
+	//	cout << "mag of p_e2 is " << p_e2.Mag() << "\n";
+	//	cout << "dot product is " << p_e1[0]*p_e2[0]+p_e1[1]*p_e2[1]+p_e1[2]*p_e2[2] << "\n";
+	//	cout << "epsilon is " << epsilon_thisstep[0] << "\t" << epsilon_thisstep[1] << "\t" << epsilon_thisstep[2] << "\n";
+	//	cout << "E_e1 is " << E_e1[0] << "\t" << E_e1[1] << "\t" << E_e1[2] << "\n";
+	//	cout << "mag of E_e1 is " << E_e1.Mag() << "\n";
+	//	cout << "E_e2 is " << E_e2[0] << "\t" << E_e2[1] << "\t" << E_e2[2] << "\n";
+	//	cout << "mag of E_e2 is " << E_e2.Mag() << "\n";
+	//	cout << "theta component of e1: " << E_e1_thetacomponent << "\t theta component of e2: " << E_e2_thetacomponent << "\n";
+	//	cout << "phi component of e1: " << E_e1_phicomponent << "\t phi component of e2: " << E_e2_phicomponent << "\n";
+	//	cout << "dot product is " << E_e1[0]*E_e2[0]+E_e1[1]*E_e2[1]+E_e1[2]*E_e2[2] << "\n";
+	//	cout << "theta_e1, theta_e2 are " << theta_e1 << "\t" << theta_e2 << "\n";
+	//	cout << "diff is " << (theta_e1-theta_e2)*DEGRAD << "\n";
+	//	cout << "thetaE_e1, thetaE_e2 are " << thetaE_e1 << "\t" << thetaE_e2 << "\n";
+	//	cout << "diff is " << (thetaE_e1-thetaE_e2)*DEGRAD << "\n";
+	//	cout << "thetas on the Sclock are " << thetaE_e1_Sclock*DEGRAD << "\t" << thetaE_e2_Sclock*DEGRAD << "\n";
+	//	cout << "diff is " << (thetaE_e1_Sclock-thetaE_e2_Sclock)*DEGRAD << "\n";
+	//	cout << "depth is " << vdepth[i][idepth] << "\n";
+	//	cout << "theta of rhat_thisstep is " << rhat_thisstep.Theta()*DEGRAD << "\n";
+	//	cout << "rhat_thisstep is " << rhat_thisstep[0] << "\t" << rhat_thisstep[1] << "\t" << rhat_thisstep[2] << "\n";
+	//	cout << "Shat_e1 is " << Shat_e1[0] << "\t" << Shat_e1[1] << "\t" << Shat_e1[2] << "\n";
+	//	cout << "Shat_e2 is " << Shat_e2[0] << "\t" << Shat_e2[1] << "\t" << Shat_e2[2] << "\n";
 		TVector3 E_e1_temp=E_e1;
 		//E_e1_temp.SetMag(1.);
 		
@@ -1729,11 +1801,11 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 		Shat_e2_temp=scalefactor*Shat_e2_temp;
 		rhat_thisstep_temp=scalefactor*rhat_thisstep_temp;
 
-
+/**
 		 //cout << "components are " << E_e1_component << "\t" << E_e2_component << "\n";
-		cout << "These are rotated so the line of sight from pulser to station is in the plane of the page.\n";
+	//	cout << "These are rotated so the line of sight from pulser to station is in the plane of the page.\n";
 		cout << "E_e1_temp is " << E_e1_temp[0] << "\t" << E_e1_temp[1] << "\t" << E_e1_temp[2] << "\n";
-		cout << "mag of E_e1_temp is " << E_e1_temp.Mag() << "\n";
+//		cout << "mag of E_e1_temp is " << E_e1_temp.Mag() << "\n";
 		cout << "E_e2_temp is " << E_e2_temp[0] << "\t" << E_e2_temp[1] << "\t" << E_e2_temp[2] << "\n";
 		cout << "mag of E_e2_temp is " << E_e2_temp.Mag() << "\n";
 		// if S-hat were in the same direction as k-hat, then E_total_temp should not have a y-component.  but they are slightly different
@@ -1746,20 +1818,20 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 		cout << "Shat_e2_temp is " << Shat_e2_temp[0] << "\t" << Shat_e2_temp[1] << "\t" << Shat_e2_temp[2] << "\n";
 		cout << "rhat_thisstep_temp is " << rhat_thisstep_temp[0] << "\t" << rhat_thisstep_temp[1] << "\t" << rhat_thisstep_temp[2] << "\n";
 
-
+**/
 		 TVector3 D_e1_temp=cos(theta_e1)*p_e1;
 		 TVector3 D_e2_temp=cos(theta_e2)*p_e2;
 
 		D_e1_temp.Rotate(-1.*angle_yhat,zaxis);
 		D_e2_temp.Rotate(-1.*angle_yhat,zaxis);
 
-		 cout << "mag of p_e1 is " << p_e1.Mag() << "\n";
-		 cout << "mag of p_e2 is " << p_e2.Mag() << "\n";
+//		 cout << "mag of p_e1 is " << p_e1.Mag() << "\n";
+//		 cout << "mag of p_e2 is " << p_e2.Mag() << "\n";
 
-		 cout << "D_e1_temp is " << D_e1_temp[0] << "\t" << D_e1_temp[1] << "\t" << D_e1_temp[2] << "\n";
-		 cout << "D_e2_temp is " << D_e2_temp[0] << "\t" << D_e2_temp[1] << "\t" << D_e2_temp[2] << "\n";
-		 cout << "mag of D_e1_temp is " << D_e1_temp.Mag() << "\n";
-		 cout << "mag of D_e2_temp is " << D_e2_temp.Mag() << "\n";
+//		 cout << "D_e1_temp is " << D_e1_temp[0] << "\t" << D_e1_temp[1] << "\t" << D_e1_temp[2] << "\n";
+//		 cout << "D_e2_temp is " << D_e2_temp[0] << "\t" << D_e2_temp[1] << "\t" << D_e2_temp[2] << "\n";
+//		 cout << "mag of D_e1_temp is " << D_e1_temp.Mag() << "\n";
+//		 cout << "mag of D_e2_temp is " << D_e2_temp.Mag() << "\n";
 
 
 	      }
@@ -1770,9 +1842,9 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 
 	      if (i==0 && idepth==g_idepth[i]->Eval(-1000.) ||
 		  i==5 && idepth==g_idepth[i]->Eval(-400.)) {
-		cout << "Shat_e1 is " << Shat_e1[0] << "\t" << Shat_e1[1] << "\t" << Shat_e1[2] << "\n";
-		cout << "Shat_e2 is " << Shat_e2[0] << "\t" << Shat_e2[1] << "\t" << Shat_e2[2] << "\n";
-		cout << "theta_e1_Sclock, theta_e2_Sclock are " << theta_e1_Sclock << "\t" << theta_e2_Sclock << "\n";
+//		cout << "Shat_e1 is " << Shat_e1[0] << "\t" << Shat_e1[1] << "\t" << Shat_e1[2] << "\n";
+//		cout << "Shat_e2 is " << Shat_e2[0] << "\t" << Shat_e2[1] << "\t" << Shat_e2[2] << "\n";
+//		cout << "theta_e1_Sclock, theta_e2_Sclock are " << theta_e1_Sclock << "\t" << theta_e2_Sclock << "\n";
 	      }
 
 	      double beam_tx_e1=sin(Shat_e1.Theta());
@@ -1862,8 +1934,12 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 
 	      vepsilon1_tx[i].push_back(epsilon1_tx*DEGRAD);
 	      vepsilon2_tx[i].push_back(epsilon2_tx*DEGRAD);
+		
+//		std::cout << "Station " << i << std::endl;	
 
-
+//		for (size_t j = 0; j < vepsilon1_tx[i].size(); ++j) {
+//    std::cout << "Element " << j << ": " << vepsilon1_tx[i][j] << std::endl;
+//}
 
 
 	      // if (i==5) {
@@ -1921,18 +1997,18 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 
 	      if (i==0 && idepth==g_idepth[i]->Eval(-1000.) ||
 		  i==5 && idepth==g_idepth[i]->Eval(-400.)) {
-		cout << "At Rx:\n";
-		cout << "A" << i+1 << ", depth is " << vdepth[i][idepth] << "\n";
-		cout << "thetas on the Sclock are " << thetaE_e1_Sclock*DEGRAD << "\t" << thetaE_e2_Sclock*DEGRAD << "\n";
-		cout << "depth is " << vdepth[i][idepth] << "\n";
+//		cout << "At Rx:\n";
+//		cout << "A" << i+1 << ", depth is " << vdepth[i][idepth] << "\n";
+//		cout << "thetas on the Sclock are " << thetaE_e1_Sclock*DEGRAD << "\t" << thetaE_e2_Sclock*DEGRAD << "\n";
+//		cout << "depth is " << vdepth[i][idepth] << "\n";
 		// }
-		cout << "theta of rhat_thisstep is " << rhat_thisstep.Theta()*DEGRAD << "\n";
-		cout << "rhat_thisstep is " << rhat_thisstep[0] << "\t" << rhat_thisstep[1] << "\t" << rhat_thisstep[2] << "\n";
-		cout << "This points from pulser to station: " << station_coords[i][0]-pulser_coords[0] << "\t" << station_coords[i][1]-pulser_coords[1] << "\t" << station_depths[i]-vdepth[i][idepth] << "\n";
+//		cout << "theta of rhat_thisstep is " << rhat_thisstep.Theta()*DEGRAD << "\n";
+//		cout << "rhat_thisstep is " << rhat_thisstep[0] << "\t" << rhat_thisstep[1] << "\t" << rhat_thisstep[2] << "\n";
+//		cout << "This points from pulser to station: " << station_coords[i][0]-pulser_coords[0] << "\t" << station_coords[i][1]-pulser_coords[1] << "\t" << station_depths[i]-vdepth[i][idepth] << "\n";
 
-		cout << "Shat_e1 is " << Shat_e1[0] << "\t" << Shat_e1[1] << "\t" << Shat_e1[2] << "\n";
-		cout << "Shat_e2 is " << Shat_e2[0] << "\t" << Shat_e2[1] << "\t" << Shat_e2[2] << "\n";
-		cout << "theta_e1_Sclock, theta_e2_Sclock are " << theta_e1_Sclock << "\t" << theta_e2_Sclock << "\n";
+//		cout << "Shat_e1 is " << Shat_e1[0] << "\t" << Shat_e1[1] << "\t" << Shat_e1[2] << "\n";
+//		cout << "Shat_e2 is " << Shat_e2[0] << "\t" << Shat_e2[1] << "\t" << Shat_e2[2] << "\n";
+//		cout << "theta_e1_Sclock, theta_e2_Sclock are " << theta_e1_Sclock << "\t" << theta_e2_Sclock << "\n";
 		TVector3 E_e1_temp=E_e1;
 		//E_e1_temp.SetMag(1.);
 		
@@ -1968,31 +2044,31 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 
 		//		cout << "components are " << E_e1_component << "\t" << E_e2_component << "\n";
 		
-		cout << "E_e1_temp is " << E_e1_temp[0] << "\t" << E_e1_temp[1] << "\t" << E_e1_temp[2] << "\n";
-		cout << "mag of E_e1_temp is " << E_e1_temp.Mag() << "\n";
-		cout << "E_e2_temp is " << E_e2_temp[0] << "\t" << E_e2_temp[1] << "\t" << E_e2_temp[2] << "\n";
-		cout << "mag of E_e2_temp is " << E_e2_temp.Mag() << "\n";
-		cout << "E_total_temp is " << E_total_temp[0] << "\t" << E_total_temp[1] << "\t" << E_total_temp[2] << "\n";
-		cout << "theta component of e1: " << E_e1_thetacomponent << "\t theta component of e2: " << E_e2_thetacomponent << "\n";
-		cout << "phi component of e1: " << E_e1_phicomponent << "\t phi component of e2: " << E_e2_phicomponent << "\n";
+//		cout << "E_e1_temp is " << E_e1_temp[0] << "\t" << E_e1_temp[1] << "\t" << E_e1_temp[2] << "\n";
+//		cout << "mag of E_e1_temp is " << E_e1_temp.Mag() << "\n";
+//		cout << "E_e2_temp is " << E_e2_temp[0] << "\t" << E_e2_temp[1] << "\t" << E_e2_temp[2] << "\n";
+//		cout << "mag of E_e2_temp is " << E_e2_temp.Mag() << "\n";
+//		cout << "E_total_temp is " << E_total_temp[0] << "\t" << E_total_temp[1] << "\t" << E_total_temp[2] << "\n";
+//		cout << "theta component of e1: " << E_e1_thetacomponent << "\t theta component of e2: " << E_e2_thetacomponent << "\n";
+//		cout << "phi component of e1: " << E_e1_phicomponent << "\t phi component of e2: " << E_e2_phicomponent << "\n";
 
-		cout << "Shat_e1_temp is " << Shat_e1_temp[0] << "\t" << Shat_e1_temp[1] << "\t" << Shat_e1_temp[2] << "\n";
-		cout << "Shat_e2_temp is " << Shat_e2_temp[0] << "\t" << Shat_e2_temp[1] << "\t" << Shat_e2_temp[2] << "\n";
-		cout << "rhat_thisstep_temp is " << rhat_thisstep_temp[0] << "\t" << rhat_thisstep_temp[1] << "\t" << rhat_thisstep_temp[2] << "\n";
+//		cout << "Shat_e1_temp is " << Shat_e1_temp[0] << "\t" << Shat_e1_temp[1] << "\t" << Shat_e1_temp[2] << "\n";
+//		cout << "Shat_e2_temp is " << Shat_e2_temp[0] << "\t" << Shat_e2_temp[1] << "\t" << Shat_e2_temp[2] << "\n";
+//		cout << "rhat_thisstep_temp is " << rhat_thisstep_temp[0] << "\t" << rhat_thisstep_temp[1] << "\t" << rhat_thisstep_temp[2] << "\n";
 
-		cout << "mag of E_total_temp is " << E_total_temp.Mag() << "\t" << 1/sqrt(E_total_temp.Mag()) << "\n";
-		 cout << "polarization angle is " << DEGRAD*atan(E_total_temp[1]/sqrt(E_total_temp[0]*E_total_temp[0]+E_total_temp[2]*E_total_temp[2])) << "\n";
+//		cout << "mag of E_total_temp is " << E_total_temp.Mag() << "\t" << 1/sqrt(E_total_temp.Mag()) << "\n";
+//		 cout << "polarization angle is " << DEGRAD*atan(E_total_temp[1]/sqrt(E_total_temp[0]*E_total_temp[0]+E_total_temp[2]*E_total_temp[2])) << "\n";
 
 		TVector3 D_e1_temp=cos(theta_e1)*p_e1;
 		TVector3 D_e2_temp=cos(theta_e2)*p_e2;
 		
-		cout << "mag of p_e1 is " << p_e1.Mag() << "\n";
-		cout << "mag of p_e2 is " << p_e2.Mag() << "\n";
+//		cout << "mag of p_e1 is " << p_e1.Mag() << "\n";
+//		cout << "mag of p_e2 is " << p_e2.Mag() << "\n";
 		
-		cout << "D_e1_temp is " << D_e1_temp[0] << "\t" << D_e1_temp[1] << "\t" << D_e1_temp[2] << "\n";
-		cout << "D_e2_temp is " << D_e2_temp[0] << "\t" << D_e2_temp[1] << "\t" << D_e2_temp[2] << "\n";
-		cout << "mag of D_e1_temp is " << D_e1_temp.Mag() << "\n";
-		cout << "mag of D_e2_temp is " << D_e2_temp.Mag() << "\n";
+//		cout << "D_e1_temp is " << D_e1_temp[0] << "\t" << D_e1_temp[1] << "\t" << D_e1_temp[2] << "\n";
+//		cout << "D_e2_temp is " << D_e2_temp[0] << "\t" << D_e2_temp[1] << "\t" << D_e2_temp[2] << "\n";
+//		cout << "mag of D_e1_temp is " << D_e1_temp.Mag() << "\n";
+//		cout << "mag of D_e2_temp is " << D_e2_temp.Mag() << "\n";
 
 
 	      }
@@ -2211,8 +2287,13 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 	  }
 	} // end loop over steps along path
 
-	sumphase=deltantimeslength_alongpath*PI/TMath::C()*freq;
+//double tdiff = deltantimeslength_alongpath/CLIGHT;
+//cout << "My Time Diff: " << tdiff << endl;
 
+//	sumphase=deltantimeslength_alongpath*PI/TMath::C()*freq;
+//cout << "sumphase: " << sumphase <<endl;
+//double time_diff=sumphase/(PI)*1./freq*1.E9;
+//cout << "time diff: " <<time_diff << endl;
 	  //vV1_r1[i].push_back(vrxdepth_atten[i][idepth]*cos(vepsilon1_tx[i][idepth]/DEGRAD)*cos(vepsilon1_rx[i][idepth]/DEGRAD)*vtxdepth_beam1[i][idepth]*vrxdepth_beam1[i][idepth]);
 	  //vV2_r1[i].push_back(vrxdepth_atten[i][idepth]*sin(vepsilon2_tx[i][idepth]/DEGRAD)*sin(vepsilon2_rx[i][idepth]/DEGRAD)*vtxdepth_beam2[i][idepth]*vrxdepth_beam2[i][idepth]);
 
@@ -2307,9 +2388,9 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 	vV2squared_r2[i].push_back(vV2_r2[i][idepth]*vV2_r2[i][idepth]);
 	vV1V2_r2[i].push_back(vV1_r2[i][idepth]*vV2_r2[i][idepth]);
 
-	if (idepth==g_idepth[i]->Eval(-1000.))
-	  cout << "station, depth, V1squared_r2, V2squared_r2, V1V2_r2 are " << i << "\t" << vV1squared_r2[i][idepth] << "\t" << vV2squared_r2[i][idepth] << "\t" << vV1V2_r2[i][idepth] << "\n"; 
-
+	if (idepth==g_idepth[i]->Eval(-1000.)){
+	//  cout << "station, depth, V1squared_r2, V2squared_r2, V1V2_r2 are " << i << "\t" << vV1squared_r2[i][idepth] << "\t" << vV2squared_r2[i][idepth] << "\t" << vV1V2_r2[i][idepth] << "\n"; 
+	}
 	voppositeV1V2_r2[i].push_back(-1.*vV1_r2[i][idepth]*vV2_r2[i][idepth]);
 	voppositeV1V2_r1[i].push_back(-1.*vV1_r1[i][idepth]*vV2_r1[i][idepth]);
       
@@ -2349,8 +2430,9 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 	    double thissumphase=sumphase*thisfreq/freq;
 	    
 	    vspectra[i][idepth].push_back(vattens[i][idepth][ifreq]/vrxdepth_atten[i][idepth]*(venvelope_plus_r1[i][idepth]-4*vV1_r1[i][idepth]*vV2_r1[i][idepth]*sin(thissumphase)*sin(thissumphase)));
-	    if (i==5 && idepth==g_idepth[i]->Eval(-1000.)) 
-	      cout << "i, vattens[i][idepth], vrxdepth_atten[i][idepth], vspectra are " << i << "\t" << vattens[i][idepth][ifreq] << "\t" << vrxdepth_atten[i][idepth] << "\t" << vspectra[i][idepth][ifreq] << "\n";
+	    if (i==5 && idepth==g_idepth[i]->Eval(-1000.)){ 
+	     // cout << "i, vattens[i][idepth], vrxdepth_atten[i][idepth], vspectra are " << i << "\t" << vattens[i][idepth][ifreq] << "\t" << vrxdepth_atten[i][idepth] << "\t" << vspectra[i][idepth][ifreq] << "\n";
+	     }
 	  }
       
 	  // these are filled one per each pulser depth
@@ -2387,38 +2469,38 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 	if (i==0 && idepth==g_idepth[i]->Eval(-1000.) ||
 	    i==5 && idepth==g_idepth[i]->Eval(-400.)) {
 	  
-	  cout << "A " << i+1 << ", depth is " << vdepth[i][idepth] << "\n";
+//	  cout << "A " << i+1 << ", depth is " << vdepth[i][idepth] << "\n";
 
 
-	  cout << "before scalefactors:\n";
-	  cout << "powers are " << vpower_r1[i][idepth] << "\t" << vpower_r2[i][idepth] << "\n";
-	  cout << "voltages are " << vvoltage_r1[i][idepth] << "\t" << vvoltage_r2[i][idepth] << "\n";
-	  cout << "lpda voltages are " << vvoltage_r1_lpda[i][idepth] << "\t" << vvoltage_r2[i][idepth] << "\n";
+//	  cout << "before scalefactors:\n";
+//	  cout << "powers are " << vpower_r1[i][idepth] << "\t" << vpower_r2[i][idepth] << "\n";
+//	  cout << "voltages are " << vvoltage_r1[i][idepth] << "\t" << vvoltage_r2[i][idepth] << "\n";
+//	  cout << "lpda voltages are " << vvoltage_r1_lpda[i][idepth] << "\t" << vvoltage_r2[i][idepth] << "\n";
 
 
 
 	  double scalefactor=0.2/sqrt(vvoltage_r1[i][idepth]*vvoltage_r1[i][idepth]+vvoltage_r2[i][idepth]*vvoltage_r2[i][idepth]);
 	  double prefactor=vrxdepth_atten[i][idepth]*vtxdepth_beam1[i][idepth]*vrxdepth_beam1[i][idepth];
-	  cout << "voltage r1 is " << scalefactor*vvoltage_r1[i][idepth] << "\n";
-	  cout << "x, z components of voltage r1 are " << vtxdepth_beam1[i][idepth]*scalefactor*vvoltage_r1[i][idepth] << "\t" << sqrt(1.-vtxdepth_beam1[i][idepth]*vtxdepth_beam1[i][idepth])*scalefactor*vvoltage_r1[i][idepth] << "\n";
+//	  cout << "voltage r1 is " << scalefactor*vvoltage_r1[i][idepth] << "\n";
+//	  cout << "x, z components of voltage r1 are " << vtxdepth_beam1[i][idepth]*scalefactor*vvoltage_r1[i][idepth] << "\t" << sqrt(1.-vtxdepth_beam1[i][idepth]*vtxdepth_beam1[i][idepth])*scalefactor*vvoltage_r1[i][idepth] << "\n";
 
-	  cout << "voltage r2 is " << scalefactor*vvoltage_r2[i][idepth] << "\n";
-	  cout << "polarization angle is " << DEGRAD*atan2(vvoltage_r2[i][idepth],vvoltage_r1[i][idepth]) << "\n";
-	  cout << "thetas_Sclock_atrx are " << theta1_Sclock_atrx << "\t" << theta2_Sclock_atrx << "\n";
-	  cout << "diff is " << (theta1_Sclock_atrx-theta2_Sclock_atrx) << "\n";
-	  cout << "thetas_Sclock_attx are " << vtxdepthE_theta1_Sclock[i][idepth] << "\t" << vtxdepthE_theta2_Sclock[i][idepth] << "\n";
-	  cout << "diff is " << (vtxdepthE_theta1_Sclock[i][idepth]-vtxdepthE_theta2_Sclock[i][idepth]) << "\n";
+//	  cout << "voltage r2 is " << scalefactor*vvoltage_r2[i][idepth] << "\n";
+//	  cout << "polarization angle is " << DEGRAD*atan2(vvoltage_r2[i][idepth],vvoltage_r1[i][idepth]) << "\n";
+//	  cout << "thetas_Sclock_atrx are " << theta1_Sclock_atrx << "\t" << theta2_Sclock_atrx << "\n";
+//	  cout << "diff is " << (theta1_Sclock_atrx-theta2_Sclock_atrx) << "\n";
+//	  cout << "thetas_Sclock_attx are " << vtxdepthE_theta1_Sclock[i][idepth] << "\t" << vtxdepthE_theta2_Sclock[i][idepth] << "\n";
+//	  cout << "diff is " << (vtxdepthE_theta1_Sclock[i][idepth]-vtxdepthE_theta2_Sclock[i][idepth]) << "\n";
 
 	  // these are for drawing
-	  cout << "vV1_r1, vV2_r1 are " << vV1_r1[i][idepth]/prefactor << "\t" << vV2_r1[i][idepth]/prefactor << "\n";
-	  cout << "vV1_r2, vV2_r2 are " << vV1_r2[i][idepth]/prefactor << "\t" << vV2_r2[i][idepth]/prefactor << "\n";
+//	  cout << "vV1_r1, vV2_r1 are " << vV1_r1[i][idepth]/prefactor << "\t" << vV2_r1[i][idepth]/prefactor << "\n";
+//	  cout << "vV1_r2, vV2_r2 are " << vV1_r2[i][idepth]/prefactor << "\t" << vV2_r2[i][idepth]/prefactor << "\n";
 	  
-	  cout << "ray 1 at tx is " << scalefactor*vrxdepth_atten[i][idepth]*vtxdepth_beam1[i][idepth]*cos(vtxdepthE_theta1_Sclock[i][idepth]/DEGRAD) << "\n";
-	  cout << "ray 2 at tx is " << scalefactor*vrxdepth_atten[i][idepth]*vtxdepth_beam1[i][idepth]*cos(vtxdepthE_theta2_Sclock[i][idepth]/DEGRAD) << "\n";
-	  cout << "fraction of wavelength is " << sumphase/(2.*PI) << "\n";
-	  cout << "vpower_r1+vpower_r2 \t" <<vpower_r1[i][idepth]+vpower_r2[i][idepth] << "\n";
-	  cout << "prefactor is " << pow(vrxdepth_atten[i][idepth]*vtxdepth_beam1[i][idepth]*vrxdepth_beam1[i][idepth],2) << "\n";
-	  cout << "three factors are " << vrxdepth_atten[i][idepth] << "\t" << vtxdepth_beam1[i][idepth] << "\t" << vrxdepth_beam1[i][idepth] << "\n";
+//	  cout << "ray 1 at tx is " << scalefactor*vrxdepth_atten[i][idepth]*vtxdepth_beam1[i][idepth]*cos(vtxdepthE_theta1_Sclock[i][idepth]/DEGRAD) << "\n";
+//	  cout << "ray 2 at tx is " << scalefactor*vrxdepth_atten[i][idepth]*vtxdepth_beam1[i][idepth]*cos(vtxdepthE_theta2_Sclock[i][idepth]/DEGRAD) << "\n";
+//	  cout << "fraction of wavelength is " << sumphase/(2.*PI) << "\n";
+//	  cout << "vpower_r1+vpower_r2 \t" <<vpower_r1[i][idepth]+vpower_r2[i][idepth] << "\n";
+//	  cout << "prefactor is " << pow(vrxdepth_atten[i][idepth]*vtxdepth_beam1[i][idepth]*vrxdepth_beam1[i][idepth],2) << "\n";
+//	  cout << "three factors are " << vrxdepth_atten[i][idepth] << "\t" << vtxdepth_beam1[i][idepth] << "\t" << vrxdepth_beam1[i][idepth] << "\n";
 	  
 	  
 	}
@@ -3096,7 +3178,7 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 
 
 
-      /*     
+           
 
       getDeltaN(nvec,khat_ray2_1,angle_iceflow,
 		n_e1,n_e2,p_e1,p_e2); // These are the eigenvectors of D_e1,0 and D_e2,0
@@ -3640,9 +3722,83 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 
 
   string filename;
+  //ASG: Print epsilons
 
+    cout << "depth, epsilon1_tx" << endl;
+    for (int i = 0; i < 6; ++i) {
+	    cout << "Station " << i+1 << endl;
+      // Get the number of points in the graph
+      int num_points = gepsilon1_tx[i]->GetN();
+      // Print the values
+      //std::cout << "Values of TGraph gepsilon1_tx[" << i << "]:" << std::endl;
+      for (int j = 0; j < num_points; ++j) {
+        double depth, epsilon1_tx;
+        gepsilon1_tx[i]->GetPoint(j, depth, epsilon1_tx);
+        std::cout << depth << ", " << epsilon1_tx << std::endl;
+      }
+      std::cout << std::endl; // Separate each 'i' with a blank line
+    }
 
+    cout << "depth, epsilon1_rx" << endl;
+    for (int i = 0; i < 6; ++i) {
+      cout << "Station " << i+1 << endl;
+      // Get the number of points in the graph
+      int num_points = gepsilon1_rx[i]->GetN();
+      // Print the values
+      //std::cout << "Values of TGraph gepsilon1_rx[" << i << "]:" << std::endl;
+      for (int j = 0; j < num_points; ++j) {
+        double depth, epsilon1_rx;
+        gepsilon1_rx[i]->GetPoint(j, depth, epsilon1_rx);
+        std::cout << depth<< ", " << epsilon1_rx << std::endl;
+      }
+      std::cout << std::endl; // Separate each 'i' with a blank line
+    }
 
+/*
+// Loop over each 'i'
+for (size_t i = 0; i < vepsilon1_tx.size(); ++i) {
+     // Loop over each element of vepsilon1_tx[i] and print it
+         for (size_t j = 0; j < vepsilon1_tx[i].size(); ++j) {
+                 std::cout << "Element " << j << " of vepsilon1_tx[" << i << "]: " << vepsilon1_tx[i][j] << std::endl;
+                     }
+                     }
+for (size_t i = 0; i < vepsilon1_rx.size(); ++i) {
+     // Loop over each element of vepsilon2_tx[i] and print it
+               for (size_t j = 0; j < vepsilon1_rx[i].size(); ++j) {
+                                std::cout << "Element " << j << " of vepsilon1_rx[" << i << "]: " << vepsilon1_rx[i][j] << std::endl;
+                                                     }
+                                                                          }
+for (size_t i = 0; i < vdepth.size(); ++i) {
+     // Loop over each element of vepsilon1_tx[i] and print it
+               for (size_t j = 0; j < vdepth[i].size(); ++j) {
+                                std::cout << "Element " << j << " of vdepth[" << i << "]: " << vdepth[i][j] << std::endl;
+                                                     }
+                                                                          }
+std::cout << "depth, vepsilon1_tx, vepsilon1_rx" << std::endl;
+for (size_t i = 0; i < vdepth.size(); ++i) {
+std::cout << "Station"<< i+1 << std::endl;
+     // Loop over each element of vepsilon1_tx[i] and print it
+                     for (size_t j = 0; j < vdepth[i].size(); ++j) {
+                                                	std::cout << vdepth[i][j] << ", " <<  vepsilon1_tx[i][j]<< ", " <<  vepsilon1_rx[i][j] << std::endl;
+                                                                                                         }
+}
+*/
+//ASG: Fitting
+//int num_depths = fit_depths.size();
+cout << "num_depths: " << num_entries_fit << endl;
+std::vector<Double_t> epsilon_differences = computeEpsilonDifferences(gepsilon1_tx[Station_Fit-1], gepsilon1_rx[Station_Fit-1], fit_depths, num_entries_fit);
+    for (size_t i = 0; i < epsilon_differences.size(); ++i) {
+        std::cout << epsilon_differences[i] << " ";
+    }
+    std::cout << std::endl;
+psi_median_model = new Double_t[epsilon_differences.size()];  // Allocate memory for the array
+std::copy(epsilon_differences.begin(), epsilon_differences.end(), psi_median_model);  // Copy data into the array
+std::cout << "Elements of psi_median_model:" << std::endl;
+    for (size_t i = 0; i < epsilon_differences.size(); ++i) {
+        std::cout << psi_median_model[i] << " ";
+    }
+    std::cout << std::endl;
+return 0;                                                                                                                                                                           
 
 
 
@@ -3891,7 +4047,7 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 	    atten*=exp(-1.*length/atten_length);
 	   
 
-	    double deltan_alongpath=getDeltaN(BIAXIAL,nvec_thisstep,rhat_thisstep,angle_iceflow,n_e1,n_e2,p_e1,p_e2);
+	    double deltan_alongpath=getDeltaN(BIAXIAL,nvec_thisstep,rhat_thisstep,angle_iceflow,n_e1,n_e2,p_e1,p_e2, par_fit);
 	   
 
 	    //	    cout << "deltan_alongpath 2 is " << deltan_alongpath << "\n";
@@ -4512,6 +4668,7 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
     legend26a->Draw("same");
     sname=sdir+"sumphase.pdf";
     c9->Print(sname.c_str());
+    c9->SaveAs("sumphase.jpg");	
 
     TCanvas *c9a=new TCanvas("c9a","c9a",800,800);   
     c9a->Divide(2,3);
@@ -7038,7 +7195,7 @@ double getDeltaN(int BIAXIAL,vector<double> nvec,TVector3 rhat,double angle_icef
   //cout << "rhat_unrotate dot p_e2 is " << rhat_unrotate.Dot(p_e2) << "\n";
   //cout << "p_e2 dot p_e1 is " << p_e2.Dot(p_e1) << "\n";
 
-/*
+//
   for (int i=0;i<3;i++) {
     double sum1=0.;
     double sum2=0.;
