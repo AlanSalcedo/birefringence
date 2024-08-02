@@ -191,13 +191,16 @@ int psiModel(int argc, char** argv, const Double_t* par_fit, Double_t* &fit_dept
   const int WHICHPOL=0;
   const int DORAYTRACING=1;
   
-  const int NSTATIONS=6; // 5 ARA stations + ARIANNA SP
+	// MACHTAY changing number of stations to 1 pls work dammit
+  const int NSTATIONS=1; // 5 ARA stations + ARIANNA SP
   const int minstation=0; // which to start with
-  const int maxstation=5; // which to end with
+  const int maxstation=0; // which to end with
   int igreatestdepth[NSTATIONS];
   int imostshallowdepth[NSTATIONS];
-  double horizontal_distances[NSTATIONS]={1257.,2353.,3146.,3199.,5179.8892,653.804525};
-  string snames[NSTATIONS]={"A1","A2","A3","A4","A5","ARIANNA"};
+	// MACHTAY LOOK HERE
+	// Changing array to just have 1 distance
+  double horizontal_distances[NSTATIONS]={3199};//{1257.,2353.,3146.,3199.,5179.8892,653.804525};
+  string snames[NSTATIONS]={"A4"};//{"A1","A2","A3","A4","A5","ARIANNA"};
   // from geoff's github, for ARIANNA station 51:
   // r = 653.804524 # meters
   // seems to be distance to arianna from spicecore.
@@ -286,6 +289,8 @@ int psiModel(int argc, char** argv, const Double_t* par_fit, Double_t* &fit_dept
   //  double pulser_coords[2]={42500, 48815.78947368421}; // my guess off the map
   double pulser_coords[2]={42358.94,48974.2}; // dzb said this came from Leah Street.
 
+	// MACHTAY change these to only have length 1!!
+	// (see commented lines below "these are reading..." comment)
   double station_coords[NSTATIONS][2]={ // this time the numbering is 5 ARA stations + ARIANNA station 51
     // these i had digitized
     //{38881.57894736842, 50921.05263157895}, // in feet
@@ -294,15 +299,15 @@ int psiModel(int argc, char** argv, const Double_t* par_fit, Double_t* &fit_dept
     //{35460.52631578947, 56710.52631578947},
 
     // these are reading off the surveyor's figure
-    {38754., 51051.}, // in feet
-    {35481., 45369.},
-    {32200., 51053.},
+//    {38754., 51051.}, // in feet
+//    {35481., 45369.},
+//    {32200., 51053.},
     {35478., 56737.},
-    {32356., 39746.}, // from Kaeli
+//    {32356., 39746.}, // from Kaeli
     //{pulser_coords[0]+horizontal_distances[5]/MFT*cos(PHI_ARIANNA) ,
     //pulser_coords[1]+horizontal_distances[5]/MFT*sin(PHI_ARIANNA) }
     // these are from geoff's github.
-    {41153.,50381.75}
+//    {41153.,50381.75}
   };
 
   //cout << "station_coords of ARIANNA is " << station_coords[5][0] << "\t" << station_coords[5][1] << "\n";
@@ -3723,9 +3728,9 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 
   string filename;
   //ASG: Print epsilons
-
+  // MACHTAY reducing loop to just do one station
     cout << "depth, epsilon1_tx" << endl;
-    for (int i = 0; i < 6; ++i) {
+    for (int i = minstation; i <= maxstation; ++i) {
 	    cout << "Station " << i+1 << endl;
       // Get the number of points in the graph
       int num_points = gepsilon1_tx[i]->GetN();
@@ -3740,7 +3745,7 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
     }
 
     cout << "depth, epsilon1_rx" << endl;
-    for (int i = 0; i < 6; ++i) {
+    for (int i = minstation; i <= maxstation; ++i) {
       cout << "Station " << i+1 << endl;
       // Get the number of points in the graph
       int num_points = gepsilon1_rx[i]->GetN();
@@ -3809,15 +3814,17 @@ return 0;
   TH2D *h2[NSTATIONS];
     
 
-  double vmax[2][NSTATIONS]={{100.,40.,40.,40.,40.,100.},
+	// MACHTAY changed to have proper length for 1 station
+  double vmax[2][NSTATIONS]={{40.}//{{100.,40.,40.,40.,40.,100.},
   //double vmax[2][NSTATIONS]={{400.,400.,400.,400.,100.,25.},
   //double vmax[2][NSTATIONS]={{10.,10.,10.,10.,1.,1.},
 			       //		       {100.,100.,100.,100.,100.,100.}};
-		       {100.,40.,40.,40.,40.,100.}};
+		       /*{100.,40.,40.,40.,40.,100.}*/}; // MACHTAY uncomment block to revert
     //double vmax[6]={500.,1500.,1000.,1500.,4000.,10.};
    
-  double pmax[2][NSTATIONS]={{1.E5,1.E5,1.E5,1.E5,1.E5,1.E5},
-			     {1.E5,1.E5,1.E5,1.E5,1.E5,1.E5}};
+	// MACHTAY change these lengths too
+  double pmax[2][NSTATIONS]={{1.E5},{1.E5}}/*{{1.E5,1.E5,1.E5,1.E5,1.E5,1.E5},
+			     {1.E5,1.E5,1.E5,1.E5,1.E5,1.E5}}*/;
 
 
   //  for (int i=0;i<NSTATIONS;i++) {

@@ -10,6 +10,7 @@
 #include "TFile.h"
 #include "TTree.h"
 #include "cpol.h"
+#include <chrono>
 
 // Extract Justin's data
 void extractPsi(const std::string& filename, Double_t* &pulserDepth, Double_t* &psi_median, Long64_t &nEntries) {
@@ -153,6 +154,10 @@ using Double_t = double;
 
 int main(int argc, char** argv) {
 
+// MACHTAY adding this to measure time to see if cutting stations is working
+using namespace std::chrono;
+auto start = high_resolution_clock::now(); // start time
+
 /*EXTRACTING JUSTIN'S DATA*/
 
     // Extracting data for A2 
@@ -175,7 +180,9 @@ int main(int argc, char** argv) {
     // Call the function to extract values
     extractPsi(A4_filename, A4_pulserDepth, A4_psi_median, A4_nEntries);
 
-    int Station_Fit = 4;
+		// MACHTAY setting to 0 because just one index in cpol.cc now
+		// Should find a better way to do this later
+    int 1tation_Fit = 1;
     Double_t par_fit[4] = {0.0, 0.0, 0.0, 0.0}; //phi, theta, gamma, delta (x-pol)
 
     std::cout << "TESTING WORKING ASG" << std::endl;
@@ -202,6 +209,11 @@ int main(int argc, char** argv) {
     delete[] A2_psi_median;
     delete[] A4_pulserDepth;
     delete[] A4_psi_median;
+
+// MACHTAY getting end time here
+auto end = high_resolution_clock::now();
+auto duration = duration_cast<microseconds>(end - start);
+std::cout << "Run time: " << duration.count() << std::endl;
 
     return 0;
 }
