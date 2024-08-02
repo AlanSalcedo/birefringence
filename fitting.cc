@@ -150,7 +150,54 @@ void run_fit_custom_function() {
 }
 */
 
+// MACHTAY I might rewrite a bunch of this...
+// Adding in the chi-squared function
+// Function to be minimized by TMinuit
+// Int_t& npar -- number of fit parameters (I think?--not used)
+// Double_t* grad -- a gradient?? (idk)
+// Double_t& fval -- final value of the chi-squared?
+// Double_t* par -- the result from the cpol.cc main function (epsilon angles)
+// Int_t iflag -- the number in the iteration (maybe?) 
+/*
+void chiSquareFunction(Int_t& npar, Double_t* grad, Double_t& fval, Double_t* par, Int_t iflag) {
+    Double_t chi2 = 0.0;
+    for (int j = 0; j < num_outputs; ++j) {
+        for (int i = 0; i < 7; ++i) {
+            Double_t x[1] = {x_data[i]}; // ASG: modifications required here. Calculate the curve once per set of depths. 
+            Double_t y[num_outputs];    // ETA: 1-2 Hours?
+            customFunction(x, par, y); // x not necessary
+            chi2 += (y[j] - y_data[j][i]) * (y[j] - y_data[j][i]);
+        }
+    }
+    fval = chi2;
+}*/
+
+// This function will calculate the chi-squared for us
 using Double_t = double;
+double chiSquared(Double_t* fitData, Double_t* measuredData, Long64_t nEntries) {
+
+    // initialize the chi-squared to start
+    double chi2 = 0.0;
+    for (int i = 0; i < nEntries; i++) {
+        chi2 += (fitData[i] - measuredData[i])*(fitData[i] - measuredData[i])/fitData[i];
+	}
+
+	return chi2;
+}
+
+// This function will get the chi-squared given an input model
+double getChiSquared(int argc, char** argv, const Double_t* fit_parameters, Double_t* median_psi_model, Double_t* A4_depths, int Station, Long64_t num_entries, Double_t* A4_psi_median){
+
+		int result = psiModel(argc, argv, fit_parameters, A4_depths, median_psi_model, Station, num_entries);
+		double chi2 = chiSquared(median_psi_model, A4_psi_median, num_entries);
+		std::cout << "chi-squared: " << chi2 << std::endl;
+		std::cout << "fit paramaters: " << fit_parameters << std::endl;
+
+		return chi2;
+}
+
+
+//using Double_t = double;
 
 int main(int argc, char** argv) {
 
@@ -182,12 +229,19 @@ auto start = high_resolution_clock::now(); // start time
 
 		// MACHTAY setting to 0 because just one index in cpol.cc now
 		// Should find a better way to do this later
-    int 1tation_Fit = 1;
+    int Station_Fit = 1;
     Double_t par_fit[4] = {0.0, 0.0, 0.0, 0.0}; //phi, theta, gamma, delta (x-pol)
-
+	// MACHTAY the below commented block works!
+	// Commenting to try functionalizing
+	Double_t* psi_median_model = nullptr;
+	double getChiSquared(argc, argv, par_fit, psi_median_model, A4_pulserDepth, Station_Fit, A4_nEntries, A4_psi_median);
+/*
     std::cout << "TESTING WORKING ASG" << std::endl;
     Double_t* psi_median_model = nullptr;
     int result = psiModel(argc, argv, par_fit, A4_pulserDepth, psi_median_model, Station_Fit, A4_nEntries);
+
+
+
 
     if (result == 0) { // Check if psiModel was successful
         std::cout << "epsilon_differences:" << std::endl;
@@ -198,6 +252,15 @@ auto start = high_resolution_clock::now(); // start time
     } else {
         std::cerr << "psiModel returned an error." << std::endl;
     }
+		// MACHTAY
+		// Ok, let's add in the chi-squared function and check that it works
+    // Need to pass in the starting fit values and the data read in for A4
+		// starting fit values: par_fit[4]
+		// data: psi_median_model
+		double chi2 = chiSquared(psi_median_model, A4_psi_median, A4_nEntries);
+		std::cout << "chi-squared: " << chi2 << std::endl;
+		std::cout << "fit paramaters: " << par_fit << std::endl;
+*/
 /*
     std::cout << "epsilon_differences:" << std::endl;
     for (Long64_t i = 0; i < 14; ++i) {
@@ -213,7 +276,7 @@ auto start = high_resolution_clock::now(); // start time
 // MACHTAY getting end time here
 auto end = high_resolution_clock::now();
 auto duration = duration_cast<microseconds>(end - start);
-std::cout << "Run time: " << duration.count() << std::endl;
+std::cout << "Run time: " << duration.count()/(1.E6) << "s" << std::endl;
 
     return 0;
 }
