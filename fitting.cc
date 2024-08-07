@@ -203,7 +203,7 @@ double chiSquared(Double_t* fitData, Double_t* measuredData, Long64_t nEntries, 
     // initialize the chi-squared to start
     double chi2 = 0.0;
     for (int i = 0; i < nEntries; i++) {
-        chi2 += (fitData[i] - measuredData[i])*(fitData[i] - measuredData[i])/(errors[i]*errors[i]);
+        chi2 += (fitData[i] - measuredData[i])*(fitData[i] - measuredData[i])/((measuredData[i] - errors[i])*(measuredData[i] - errors[i]));
 	}
 
 	return chi2;
