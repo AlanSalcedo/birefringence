@@ -11,9 +11,10 @@
 #include "TTree.h"
 #include "cpol.h"
 #include <chrono>
+#include<fstream>
 
 // Extract Justin's data
-void extractPsi(const std::string& filename, Double_t* &pulserDepth, Double_t* &psi_median, Long64_t &nEntries) {
+void extractPsi(const std::string& filename, Double_t* &pulserDepth, Double_t* &psi_median, Long64_t &nEntries, Double_t* &psi_errors) {
     // Open the ROOT file
     TFile *file = TFile::Open(filename.c_str());
     if (!file || file->IsZombie()) {
@@ -40,18 +41,23 @@ void extractPsi(const std::string& filename, Double_t* &pulserDepth, Double_t* &
     // Allocate arrays for pulserDepth and psi_median
     pulserDepth = new Double_t[nEntries];
     psi_median = new Double_t[nEntries];
+		// MACHTAY we need to also get the uncertainty
+		psi_errors = new Double_t[nEntries];
 
     // Set the branch addresses
     Double_t pulserDepthValue;
     Double_t psi_medianValue;
+		Double_t psi_errorBars;
     tree->SetBranchAddress("pulserDepth", &pulserDepthValue);
     tree->SetBranchAddress("psi_median", &psi_medianValue);
+    tree->SetBranchAddress("psi_upperLimit", &psi_errorBars);
 
     // Loop over the entries and fill the arrays
     for (Long64_t i = 0; i < nEntries; ++i) {
         tree->GetEntry(i);
         pulserDepth[i] = pulserDepthValue;
         psi_median[i] = psi_medianValue;
+				psi_errors[i] = psi_errorBars;
     }
 
     // Close the file
@@ -172,30 +178,68 @@ void chiSquareFunction(Int_t& npar, Double_t* grad, Double_t& fval, Double_t* pa
     fval = chi2;
 }*/
 
+
+// MACHTAY make a structure for getChiSquared (according to Dr. G):
+struct ChiSquareContext {
+  int argc;
+  char** argv;
+  const Double_t* fit_parameters;
+  Double_t* median_psi_model;
+	Double_t* A4_depths;
+	int Station;
+  Long64_t num_entries;
+  Double_t* A4_psi_median;
+	Double_t* A4_psi_errors;
+	std::ofstream logFile;
+};
+
+// Global pointer to the context
+ChiSquareContext* gContext = nullptr;
+
 // This function will calculate the chi-squared for us
 using Double_t = double;
-double chiSquared(Double_t* fitData, Double_t* measuredData, Long64_t nEntries) {
+double chiSquared(Double_t* fitData, Double_t* measuredData, Long64_t nEntries, Double_t* errors) {
 
     // initialize the chi-squared to start
     double chi2 = 0.0;
     for (int i = 0; i < nEntries; i++) {
-        chi2 += (fitData[i] - measuredData[i])*(fitData[i] - measuredData[i])/fitData[i];
+        chi2 += (fitData[i] - measuredData[i])*(fitData[i] - measuredData[i])/(errors[i]*errors[i]);
 	}
 
 	return chi2;
 }
 
 // This function will get the chi-squared given an input model
-double getChiSquared(int argc, char** argv, const Double_t* fit_parameters, Double_t* median_psi_model, Double_t* A4_depths, int Station, Long64_t num_entries, Double_t* A4_psi_median){
+void getChiSquared(int argc, char** argv, const Double_t* fit_parameters, Double_t* median_psi_model, Double_t* A4_depths, int Station, Long64_t num_entries, Double_t* A4_psi_median, Double_t* A4_psi_errors){
 
+    ChiSquareContext* context = gContext;
 		int result = psiModel(argc, argv, fit_parameters, A4_depths, median_psi_model, Station, num_entries);
-		double chi2 = chiSquared(median_psi_model, A4_psi_median, num_entries);
+		double chi2 = chiSquared(median_psi_model, A4_psi_median, num_entries, A4_psi_errors);
 		std::cout << "chi-squared: " << chi2 << std::endl;
-		std::cout << "fit paramaters: " << fit_parameters << std::endl;
+		for(int i = 0; i < 4; i++){
+		  std::cout << "fit paramater " << i+1 << ": " << fit_parameters[i] << std::endl;
+		}
 
-		return chi2;
+//		return chi2;
 }
 
+void chiSquareFunction(Int_t& npar, Double_t* grad, Double_t& fval, Double_t* par, Int_t iflag) {
+// Access the context via the global pointer
+  ChiSquareContext* context = gContext;
+
+  // Call psiModel to update psi_median_model based on current parameters
+  int result = psiModel(context->argc, context->argv, par, context->A4_depths, context->median_psi_model, context->Station, context->num_entries);
+
+  // Calculate the chi-squared value
+  fval = chiSquared(context->median_psi_model, context->A4_psi_median, context->num_entries, context->A4_psi_errors);
+
+	// let's get the chi squared and the corresponding fit parameters
+	std::cout << "chi-squared: " << fval << " | parameters: " << std::endl;
+	for(int i = 0; i < 4; i++){
+    std::cout << par[i] << " " << std::endl;
+	}
+}
+//
 
 //using Double_t = double;
 
@@ -209,23 +253,25 @@ auto start = high_resolution_clock::now(); // start time
 
     // Extracting data for A2 
 
-    std::string A2_filename = "/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A2_spiceReco.root";
+    std::string A2_filename = "/users/PAS0654/jflaherty13/forAlex/spiceDataForFit/A2_spiceReco.root"; //"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A2_spiceReco.root";
     Double_t* A2_pulserDepth = nullptr;
     Double_t* A2_psi_median = nullptr;
     Long64_t A2_nEntries = 0;
+		Double_t* A2_psi_errors = nullptr;
 
     // Call the function to extract values
-    extractPsi(A2_filename, A2_pulserDepth, A2_psi_median, A2_nEntries);
+//    extractPsi(A2_filename, A2_pulserDepth, A2_psi_median, A2_nEntries, A2_psi_errors);
 
     //Extracting data for A4
 
-    std::string A4_filename = "/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root";
+    std::string A4_filename = "/users/PAS0654/jflaherty13/forAlex/spiceDataForFit/A4_spiceReco.root"; //"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root";
     Double_t* A4_pulserDepth = nullptr;
     Double_t* A4_psi_median = nullptr;
     Long64_t A4_nEntries = 0;
+		Double_t* A4_psi_errors = nullptr;
 
     // Call the function to extract values
-    extractPsi(A4_filename, A4_pulserDepth, A4_psi_median, A4_nEntries);
+    extractPsi(A4_filename, A4_pulserDepth, A4_psi_median, A4_nEntries, A4_psi_errors);
 
 		// MACHTAY setting to 0 because just one index in cpol.cc now
 		// Should find a better way to do this later
@@ -234,7 +280,61 @@ auto start = high_resolution_clock::now(); // start time
 	// MACHTAY the below commented block works!
 	// Commenting to try functionalizing
 	Double_t* psi_median_model = nullptr;
-	double getChiSquared(argc, argv, par_fit, psi_median_model, A4_pulserDepth, Station_Fit, A4_nEntries, A4_psi_median);
+  //int result = psiModel(argc, argv, par_fit, A4_pulserDepth, psi_median_model, Station_Fit, A4_nEntries);
+//	double chi2 = getChiSquared(argc, argv, par_fit, psi_median_model, A4_pulserDepth, Station_Fit, A4_nEntries, A4_psi_median);
+
+  // MACHTAY ok let's set up the TMinuit thing to do the optimization
+	// Praise ChatGPT
+  //We have to do this first (apparently):
+  // Initialize context
+  ChiSquareContext context;
+	context.argc = argc;
+  context.argv = argv;
+  context.A4_depths = A4_pulserDepth;
+	context.A4_psi_median = A4_psi_median;
+	context.num_entries = A4_nEntries;
+	context.Station = 1;
+	context.median_psi_model = new Double_t[A4_nEntries];
+	context.A4_psi_errors = A4_psi_errors;
+  context.logFile.open("minimization_log.txt");
+	// Set the global context pointer
+	gContext = &context;
+
+  // Set up TMinuit for optimization
+	TMinuit minuit(4); // 4 parameters to fit
+	minuit.SetFCN(chiSquareFunction);
+	minuit.SetMaxIterations(3);
+	minuit.SetErrorDef(1e-3);
+	//
+	// Set initial values and step sizes for parameters
+	Double_t par[4] = {10, 10, 10, 10};
+	Double_t step[4] = {10, 10, 10, 10};
+	for (int i = 0; i < 4; ++i) {
+    minuit.DefineParameter(i, ("par" + std::to_string(i)).c_str(), par[i], step[i], 0, 0);
+
+	 // minuit.DefineParameter(i, "par" + std::to_string(i), par[i], step[i], 0, 0);
+	}
+	//
+	// Perform the minimization
+	minuit.Migrad();
+	//
+	// Retrieve fit results
+  Double_t fmin, fedm, errdef;
+  Int_t npari, nparx, istat;
+  minuit.mnstat(fmin, fedm, errdef, npari, nparx, istat);
+	
+	std::cout << "Fit results:\n";
+	std::cout << "Chi2: " << fmin << "\n";
+	std::cout << "Estimated distance to minimum (EDM): " << fedm << "\n";
+	std::cout << "Number of parameters: " << npari << "\n";
+	std::cout << "Number of free parameters: " << nparx << "\n";
+	std::cout << "Status: " << istat << "\n";
+
+	Double_t fit_par[4], fit_err[4];
+	for (int i = 0; i < 4; ++i) {
+	minuit.GetParameter(i, fit_par[i], fit_err[i]);
+	}
+
 /*
     std::cout << "TESTING WORKING ASG" << std::endl;
     Double_t* psi_median_model = nullptr;
@@ -272,6 +372,7 @@ auto start = high_resolution_clock::now(); // start time
     delete[] A2_psi_median;
     delete[] A4_pulserDepth;
     delete[] A4_psi_median;
+		delete[] A4_psi_errors;
 
 // MACHTAY getting end time here
 auto end = high_resolution_clock::now();

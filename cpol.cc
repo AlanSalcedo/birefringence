@@ -145,9 +145,9 @@ std::vector<Double_t> computeEpsilonDifferences(TGraph* gepsilon1_tx, TGraph* ge
     std::vector<Double_t> epsilon_differences;
     for (int i = 0; i < num_depths; ++i) {
         Double_t depth = fit_depths[i];
-	cout << "depths: " << depth << endl;
+	//cout << "depths: " << depth << endl;
         double epsilon_tx = getEpsilonAtDepth(gepsilon1_tx, depth);
-	cout << "epsilon_tx: " << epsilon_tx << endl;
+	//cout << "epsilon_tx: " << epsilon_tx << endl;
         double epsilon_rx = getEpsilonAtDepth(gepsilon1_rx, depth);
         epsilon_differences.push_back(epsilon_tx - epsilon_rx);
     }
@@ -3729,9 +3729,10 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
   string filename;
   //ASG: Print epsilons
   // MACHTAY reducing loop to just do one station
-    cout << "depth, epsilon1_tx" << endl;
+	// Also commented lots of print statements
+    //cout << "depth, epsilon1_tx" << endl;
     for (int i = minstation; i <= maxstation; ++i) {
-	    cout << "Station " << i+1 << endl;
+	    //cout << "Station " << i+1 << endl;
       // Get the number of points in the graph
       int num_points = gepsilon1_tx[i]->GetN();
       // Print the values
@@ -3739,14 +3740,14 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
       for (int j = 0; j < num_points; ++j) {
         double depth, epsilon1_tx;
         gepsilon1_tx[i]->GetPoint(j, depth, epsilon1_tx);
-        std::cout << depth << ", " << epsilon1_tx << std::endl;
+        //std::cout << depth << ", " << epsilon1_tx << std::endl;
       }
-      std::cout << std::endl; // Separate each 'i' with a blank line
+      //std::cout << std::endl; // Separate each 'i' with a blank line
     }
 
-    cout << "depth, epsilon1_rx" << endl;
+    //cout << "depth, epsilon1_rx" << endl;
     for (int i = minstation; i <= maxstation; ++i) {
-      cout << "Station " << i+1 << endl;
+      //cout << "Station " << i+1 << endl;
       // Get the number of points in the graph
       int num_points = gepsilon1_rx[i]->GetN();
       // Print the values
@@ -3754,7 +3755,7 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
       for (int j = 0; j < num_points; ++j) {
         double depth, epsilon1_rx;
         gepsilon1_rx[i]->GetPoint(j, depth, epsilon1_rx);
-        std::cout << depth<< ", " << epsilon1_rx << std::endl;
+        //std::cout << depth<< ", " << epsilon1_rx << std::endl;
       }
       std::cout << std::endl; // Separate each 'i' with a blank line
     }
@@ -3790,7 +3791,7 @@ std::cout << "Station"<< i+1 << std::endl;
 */
 //ASG: Fitting
 //int num_depths = fit_depths.size();
-cout << "num_depths: " << num_entries_fit << endl;
+//cout << "num_depths: " << num_entries_fit << endl;
 std::vector<Double_t> epsilon_differences = computeEpsilonDifferences(gepsilon1_tx[Station_Fit-1], gepsilon1_rx[Station_Fit-1], fit_depths, num_entries_fit);
     for (size_t i = 0; i < epsilon_differences.size(); ++i) {
         std::cout << epsilon_differences[i] << " ";
