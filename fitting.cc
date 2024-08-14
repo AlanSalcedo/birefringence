@@ -11,7 +11,9 @@
 #include "TTree.h"
 #include "cpol.h"
 #include <chrono>
-#include<fstream>
+#include <fstream>
+#include <string>
+#include <iostream>
 
 // Extract Justin's data
 void extractPsi(const std::string& filename, Double_t* &pulserDepth, Double_t* &psi_median, Long64_t &nEntries, Double_t* &psi_errors) {
@@ -217,7 +219,7 @@ void getChiSquared(int argc, char** argv, const Double_t* fit_parameters, Double
 		double chi2 = chiSquared(median_psi_model, A4_psi_median, num_entries, A4_psi_errors);
 		std::cout << "chi-squared: " << chi2 << std::endl;
 		for(int i = 0; i < 4; i++){
-		  std::cout << "fit paramater " << i+1 << ": " << fit_parameters[i] << std::endl;
+		  std::cout << "fit parameter " << i+1 << ": " << fit_parameters[i] << std::endl;
 		}
 
 //		return chi2;
@@ -253,12 +255,13 @@ auto start = high_resolution_clock::now(); // start time
 
     // Extracting data for A2 
 
+/*
     std::string A2_filename = "/users/PAS0654/jflaherty13/forAlex/spiceDataForFit/A2_spiceReco.root"; //"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A2_spiceReco.root";
     Double_t* A2_pulserDepth = nullptr;
     Double_t* A2_psi_median = nullptr;
     Long64_t A2_nEntries = 0;
 		Double_t* A2_psi_errors = nullptr;
-
+*/
     // Call the function to extract values
 //    extractPsi(A2_filename, A2_pulserDepth, A2_psi_median, A2_nEntries, A2_psi_errors);
 
@@ -272,11 +275,12 @@ auto start = high_resolution_clock::now(); // start time
 
     // Call the function to extract values
     extractPsi(A4_filename, A4_pulserDepth, A4_psi_median, A4_nEntries, A4_psi_errors);
-
+auto mid = high_resolution_clock::now(); // start time
+std::cout << "Mid time: " << duration_cast<microseconds>(mid - start).count()/(1e6) << std::endl;
 		// MACHTAY setting to 0 because just one index in cpol.cc now
 		// Should find a better way to do this later
     int Station_Fit = 1;
-    Double_t par_fit[4] = {0.0, 0.0, 0.0, 0.0}; //phi, theta, gamma, delta (x-pol)
+    Double_t par_fit[4] = {std::stod(argv[1]), std::stod(argv[2]), std::stod(argv[3]), std::stod(argv[4])}; //phi, theta, gamma, delta (x-pol)
 	// MACHTAY the below commented block works!
 	// Commenting to try functionalizing
 	Double_t* psi_median_model = nullptr;
@@ -300,39 +304,50 @@ auto start = high_resolution_clock::now(); // start time
 	// Set the global context pointer
 	gContext = &context;
 
-  // Set up TMinuit for optimization
-	TMinuit minuit(4); // 4 parameters to fit
-	minuit.SetFCN(chiSquareFunction);
-	minuit.SetMaxIterations(3);
-	minuit.SetErrorDef(1e-3);
-	//
-	// Set initial values and step sizes for parameters
-	Double_t par[4] = {10, 10, 10, 10};
-	Double_t step[4] = {10, 10, 10, 10};
-	for (int i = 0; i < 4; ++i) {
-    minuit.DefineParameter(i, ("par" + std::to_string(i)).c_str(), par[i], step[i], 0, 0);
+	// Ok, let's try making there two modes
+	// There can be a fit mode and a single run mode
+	// The single run mode will be used for a coarse grid search
+	int MODE = std::stoi(argv[5]);
+	if(MODE == 0){
+					// Set up TMinuit for optimization
+					TMinuit minuit(4); // 4 parameters to fit
+					minuit.SetFCN(chiSquareFunction);
+					minuit.SetMaxIterations(1000);
+					minuit.SetErrorDef(1e-3);
+					//
+					// Set initial values and step sizes for parameters
+					Double_t par[4] = {10., 10., 10., 10};
+					Double_t step[4] = {10, 10, 10, 10};
+					for (int i = -1; i < 4; ++i) {
+						minuit.DefineParameter(i, ("par" + std::to_string(i)).c_str(), par[i], step[i], 0, 90);
 
-	 // minuit.DefineParameter(i, "par" + std::to_string(i), par[i], step[i], 0, 0);
+					 // minuit.DefineParameter(i, "par" + std::to_string(i), par[i], step[i], 0, 0);
+					}
+					//
+					// Perform the minimization
+					minuit.Migrad();
+					//
+					// Retrieve fit results
+					Double_t fmin, fedm, errdef;
+					Int_t npari, nparx, istat;
+					minuit.mnstat(fmin, fedm, errdef, npari, nparx, istat);
+					
+					std::cout << "Fit results:\n";
+					std::cout << "Chi2: " << fmin << "\n";
+					std::cout << "Estimated distance to minimum (EDM): " << fedm << "\n";
+					std::cout << "Number of parameters: " << npari << "\n";
+					std::cout << "Number of free parameters: " << nparx << "\n";
+					std::cout << "Status: " << istat << "\n";
+
+					Double_t fit_par[4], fit_err[4];
+					for (int i = 0; i < 4; ++i) {
+					minuit.GetParameter(i, fit_par[i], fit_err[i]);
+					}
 	}
-	//
-	// Perform the minimization
-	minuit.Migrad();
-	//
-	// Retrieve fit results
-  Double_t fmin, fedm, errdef;
-  Int_t npari, nparx, istat;
-  minuit.mnstat(fmin, fedm, errdef, npari, nparx, istat);
-	
-	std::cout << "Fit results:\n";
-	std::cout << "Chi2: " << fmin << "\n";
-	std::cout << "Estimated distance to minimum (EDM): " << fedm << "\n";
-	std::cout << "Number of parameters: " << npari << "\n";
-	std::cout << "Number of free parameters: " << nparx << "\n";
-	std::cout << "Status: " << istat << "\n";
+	else {
+				int result = psiModel(argc, argv, par_fit, A4_pulserDepth, psi_median_model, Station_Fit, A4_nEntries);
+				getChiSquared(argc, argv, par_fit, psi_median_model, A4_pulserDepth, Station_Fit, A4_nEntries, A4_psi_median, A4_psi_errors);
 
-	Double_t fit_par[4], fit_err[4];
-	for (int i = 0; i < 4; ++i) {
-	minuit.GetParameter(i, fit_par[i], fit_err[i]);
 	}
 
 /*
@@ -368,8 +383,8 @@ auto start = high_resolution_clock::now(); // start time
     }
 */
     // Clean up allocated memory
-    delete[] A2_pulserDepth;
-    delete[] A2_psi_median;
+   // delete[] A2_pulserDepth;
+   // delete[] A2_psi_median;
     delete[] A4_pulserDepth;
     delete[] A4_psi_median;
 		delete[] A4_psi_errors;
