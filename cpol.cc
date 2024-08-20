@@ -192,15 +192,15 @@ int psiModel(int argc, char** argv, const Double_t* par_fit, Double_t* &fit_dept
   const int DORAYTRACING=1;
   
 	// MACHTAY changing number of stations to 1 pls work dammit
-  const int NSTATIONS=1; // 5 ARA stations + ARIANNA SP
+  const int NSTATIONS=2; // 5 ARA stations + ARIANNA SP
   const int minstation=0; // which to start with
-  const int maxstation=0; // which to end with
+  const int maxstation=1; // which to end with
   int igreatestdepth[NSTATIONS];
   int imostshallowdepth[NSTATIONS];
 	// MACHTAY LOOK HERE
 	// Changing array to just have 1 distance
-  double horizontal_distances[NSTATIONS]={3199};//{1257.,2353.,3146.,3199.,5179.8892,653.804525};
-  string snames[NSTATIONS]={"A4"};//{"A1","A2","A3","A4","A5","ARIANNA"};
+  double horizontal_distances[NSTATIONS]={2353, 3199};//{1257.,2353.,3146.,3199.,5179.8892,653.804525};
+  string snames[NSTATIONS]={"A2", "A4"};//{"A1","A2","A3","A4","A5","ARIANNA"};
   // from geoff's github, for ARIANNA station 51:
   // r = 653.804524 # meters
   // seems to be distance to arianna from spicecore.
@@ -300,7 +300,7 @@ int psiModel(int argc, char** argv, const Double_t* par_fit, Double_t* &fit_dept
 
     // these are reading off the surveyor's figure
 //    {38754., 51051.}, // in feet
-//    {35481., 45369.},
+    {35481., 45369.},
 //    {32200., 51053.},
     {35478., 56737.},
 //    {32356., 39746.}, // from Kaeli
@@ -3822,7 +3822,7 @@ return 0;
     
 
 	// MACHTAY changed to have proper length for 1 station
-  double vmax[2][NSTATIONS]={{40.}//{{100.,40.,40.,40.,40.,100.},
+  double vmax[2][NSTATIONS]={{40., 40.}//{{100.,40.,40.,40.,40.,100.},
   //double vmax[2][NSTATIONS]={{400.,400.,400.,400.,100.,25.},
   //double vmax[2][NSTATIONS]={{10.,10.,10.,10.,1.,1.},
 			       //		       {100.,100.,100.,100.,100.,100.}};
@@ -3830,7 +3830,7 @@ return 0;
     //double vmax[6]={500.,1500.,1000.,1500.,4000.,10.};
    
 	// MACHTAY change these lengths too
-  double pmax[2][NSTATIONS]={{1.E5},{1.E5}}/*{{1.E5,1.E5,1.E5,1.E5,1.E5,1.E5},
+  double pmax[2][NSTATIONS]={{1.E5, 1.E5},{1.E5, 1.E5}}/*{{1.E5,1.E5,1.E5,1.E5,1.E5,1.E5},
 			     {1.E5,1.E5,1.E5,1.E5,1.E5,1.E5}}*/;
 
 
