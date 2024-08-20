@@ -3797,6 +3797,12 @@ std::vector<Double_t> epsilon_differences = computeEpsilonDifferences(gepsilon1_
         std::cout << epsilon_differences[i] << " ";
     }
     std::cout << std::endl;
+		std::cout << "Fit depths: ";
+    for (size_t i = 0; i < epsilon_differences.size(); ++i) {
+        std::cout << fit_depths[i] << ", ";
+    }
+    std::cout << std::endl;
+
 psi_median_model = new Double_t[epsilon_differences.size()];  // Allocate memory for the array
 std::copy(epsilon_differences.begin(), epsilon_differences.end(), psi_median_model);  // Copy data into the array
 std::cout << "Elements of psi_median_model:" << std::endl;

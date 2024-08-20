@@ -66,121 +66,6 @@ void extractPsi(const std::string& filename, Double_t* &pulserDepth, Double_t* &
     file->Close();
 }
 
-// Declare the function prototype for psiModel
-//int psiModel(int argc, char** argv, const Double_t* par_fit, Double_t* &fit_depths, Double_t* &psi_median_model, int Station_Fit);
-
-/*
-// Declare the custom function
-void customFunction(const Double_t* x, const Double_t* par, Double_t* output); // ASG: This should be the main function from cpol.cc. Make it stop and return the epsilon values 
-                                                                               // when they've been calculated.
-                                                                               // ETA: A GOOD(!) day, two meh days
-
-const int num_outputs = 5; // Two curves for now, five later
-
-// Data points. ASG: Import Justin's data here. ETA: 2 hours?
-Double_t x_data[] = {-2, -1, 0, 1, 2, 3, 4}; //ASG: Depths
-Double_t y_data[num_outputs][7] = { //ASG: Polarization angles
-    {4.1, 1.2, 0.9, 2.2, 4.5, 9.1, 15.6},
-    {3.9, 1.1, 1.0, 2.0, 4.4, 9.2, 15.4},
-    {4.0, 1.3, 0.8, 2.1, 4.3, 9.3, 15.5},
-    {4.2, 1.0, 1.1, 2.3, 4.6, 9.0, 15.7},
-    {4.3, 1.2, 0.7, 2.4, 4.7, 9.4, 15.8}
-}; 
-
-// Function to be minimized by TMinuit
-void chiSquareFunction(Int_t& npar, Double_t* grad, Double_t& fval, Double_t* par, Int_t iflag) {
-    Double_t chi2 = 0.0;
-    for (int j = 0; j < num_outputs; ++j) {
-        for (int i = 0; i < 7; ++i) {
-            Double_t x[1] = {x_data[i]}; // ASG: modifications required here. Calculate the curve once per set of depths. 
-            Double_t y[num_outputs];    // ETA: 1-2 Hours?
-            customFunction(x, par, y); // x not necessary
-            chi2 += (y[j] - y_data[j][i]) * (y[j] - y_data[j][i]);
-        }
-    }
-    fval = chi2;
-}
-
-void fit_custom_function() {
-    TMinuit minuit(4); // 4 parameters to fit
-    minuit.SetFCN(chiSquareFunction);
-
-    // Set initial values and step sizes for parameters
-    Double_t par[4] = {1.0, 1.0, 1.0, 1.0};
-    Double_t step[4] = {0.1, 0.1, 0.1, 0.1}; //ASG: Resolution too high?
-    for (int i = 0; i < 4; ++i) {
-        minuit.DefineParameter(i, "par" + std::to_string(i), par[i], step[i], 0, 0);
-    }
-
-    // Perform the minimization
-    minuit.Migrad();
-
-    //ASG: The rest is just retrieving results, just learn details of what it is doing
-
-    // Retrieve fit results
-    Double_t fit_par[4], fit_err[4];
-    for (int i = 0; i < 4; ++i) {
-        minuit.GetParameter(i, fit_par[i], fit_err[i]);
-    }
-
-    // Print fit results
-    std::cout << "Fit results:\n";
-    std::cout << "Chi2: " << minuit.fAmin << "\n";
-    std::cout << "Parameters:\n";
-    for (int i = 0; i < 4; ++i) {
-        std::cout << "par[" << i << "] = " << fit_par[i] << " +/- " << fit_err[i] << "\n";
-    }
-
-    // Create a canvas to draw on
-    TCanvas* c1 = new TCanvas("c1", "Fit Example with Custom Function", 800, 600);
-    
-    // Draw the graph for the first output set
-    TGraph* graph = new TGraph(7, x_data, y_data[0]);
-    graph->Draw("AP"); // "A" to draw axis, "P" to draw points
-
-    // Optionally, add more graphs for each output set to the canvas
-    for (int j = 1; j < num_outputs; ++j) {
-        TGraph* graph_j = new TGraph(7, x_data, y_data[j]);
-        graph_j->SetMarkerColor(j+1); // Change color for each set
-        graph_j->Draw("P same");
-    }
-
-    // Save the canvas as an image
-    c1->SaveAs("fit_custom_function.png");
-
-    // Show the canvas (optional, depends on your environment)
-    c1->Draw();
-}
-
-// Execute the function
-void run_fit_custom_function() {
-    fit_custom_function();
-}
-*/
-
-// MACHTAY I might rewrite a bunch of this...
-// Adding in the chi-squared function
-// Function to be minimized by TMinuit
-// Int_t& npar -- number of fit parameters (I think?--not used)
-// Double_t* grad -- a gradient?? (idk)
-// Double_t& fval -- final value of the chi-squared?
-// Double_t* par -- the result from the cpol.cc main function (epsilon angles)
-// Int_t iflag -- the number in the iteration (maybe?) 
-/*
-void chiSquareFunction(Int_t& npar, Double_t* grad, Double_t& fval, Double_t* par, Int_t iflag) {
-    Double_t chi2 = 0.0;
-    for (int j = 0; j < num_outputs; ++j) {
-        for (int i = 0; i < 7; ++i) {
-            Double_t x[1] = {x_data[i]}; // ASG: modifications required here. Calculate the curve once per set of depths. 
-            Double_t y[num_outputs];    // ETA: 1-2 Hours?
-            customFunction(x, par, y); // x not necessary
-            chi2 += (y[j] - y_data[j][i]) * (y[j] - y_data[j][i]);
-        }
-    }
-    fval = chi2;
-}*/
-
-
 // MACHTAY make a structure for getChiSquared (according to Dr. G):
 struct ChiSquareContext {
   int argc;
@@ -192,6 +77,7 @@ struct ChiSquareContext {
   Long64_t num_entries;
   Double_t* A4_psi_median;
 	Double_t* A4_psi_errors;
+	Int_t FIT_MODE;
 	std::ofstream logFile;
 };
 
@@ -200,115 +86,190 @@ ChiSquareContext* gContext = nullptr;
 
 // This function will calculate the chi-squared for us
 using Double_t = double;
-double chiSquared(Double_t* fitData, Double_t* measuredData, Long64_t nEntries, Double_t* errors) {
+using Int_t = int;
+double chiSquared(Double_t* fitData, Double_t* measuredData, Long64_t nEntries, Double_t* errors, Int_t FIT_MODE) {
 
     // initialize the chi-squared to start
+				std::cout << "Actual data: ";
+
     double chi2 = 0.0;
+		double denom = 0.0;
     for (int i = 0; i < nEntries; i++) {
-        chi2 += (fitData[i] - measuredData[i])*(fitData[i] - measuredData[i])/((measuredData[i] - errors[i])*(measuredData[i] - errors[i]));
-	}
+				if(FIT_MODE == 0){
+								denom = (measuredData[i] - errors[i])*(measuredData[i] - errors[i]);
+				}
+				else
+				{
+								denom = fitData[i];
 
-	return chi2;
-}
+				}
+								chi2 += (fitData[i] - measuredData[i])*(fitData[i] - measuredData[i])/denom;
+								std::cout << measuredData[i] << ", ";
+					}
+						std::cout << std::endl;
+						std::cout << "Errors : ";
+						for (int i = 0; i < nEntries; i++) {
+								std::cout << measuredData[i] - errors[i] << ", ";
+					}	
+						std::cout << std::endl;
+						std::cout << "Fit data: " << *fitData << std::endl;
+					return chi2;
+				}
 
-// This function will get the chi-squared given an input model
-void getChiSquared(int argc, char** argv, const Double_t* fit_parameters, Double_t* median_psi_model, Double_t* A4_depths, int Station, Long64_t num_entries, Double_t* A4_psi_median, Double_t* A4_psi_errors){
+				// This function will get the chi-squared given an input model
+				void getChiSquared(int argc, char** argv, const Double_t* fit_parameters, Double_t* median_psi_model, Double_t* A4_depths, int Station, Long64_t num_entries, Double_t* A4_psi_median, Double_t* A4_psi_errors, Int_t FIT_MODE){
 
-    ChiSquareContext* context = gContext;
-		int result = psiModel(argc, argv, fit_parameters, A4_depths, median_psi_model, Station, num_entries);
-		double chi2 = chiSquared(median_psi_model, A4_psi_median, num_entries, A4_psi_errors);
-		std::cout << "chi-squared: " << chi2 << std::endl;
-		for(int i = 0; i < 4; i++){
-		  std::cout << "fit parameter " << i+1 << ": " << fit_parameters[i] << std::endl;
-		}
+						ChiSquareContext* context = gContext;
+						int result = psiModel(argc, argv, fit_parameters, A4_depths, median_psi_model, Station, num_entries);
+						double chi2 = chiSquared(median_psi_model, A4_psi_median, num_entries, A4_psi_errors, FIT_MODE);
+						std::cout << "chi-squared: " << chi2 << std::endl;
+						for(int i = 0; i < 4; i++){
+							std::cout << "fit parameter " << i+1 << ": " << fit_parameters[i] << std::endl;
+						}
 
-//		return chi2;
-}
+				//		return chi2;
+				}
 
-void chiSquareFunction(Int_t& npar, Double_t* grad, Double_t& fval, Double_t* par, Int_t iflag) {
-// Access the context via the global pointer
-  ChiSquareContext* context = gContext;
+				void chiSquareFunction(Int_t& npar, Double_t* grad, Double_t& fval, Double_t* par, Int_t iflag) {
+				// Access the context via the global pointer
+					ChiSquareContext* context = gContext;
 
-  // Call psiModel to update psi_median_model based on current parameters
-  int result = psiModel(context->argc, context->argv, par, context->A4_depths, context->median_psi_model, context->Station, context->num_entries);
+					// Call psiModel to update psi_median_model based on current parameters
+					int result = psiModel(context->argc, context->argv, par, context->A4_depths, context->median_psi_model, context->Station, context->num_entries);
+//				  Int_t fit_mode = FIT_MODE;
+					// Calculate the chi-squared value
+					fval = chiSquared(context->median_psi_model, context->A4_psi_median, context->num_entries, context->A4_psi_errors, context->FIT_MODE);
 
-  // Calculate the chi-squared value
-  fval = chiSquared(context->median_psi_model, context->A4_psi_median, context->num_entries, context->A4_psi_errors);
+					// let's get the chi squared and the corresponding fit parameters
+					std::cout << "chi-squared: " << fval << " | parameters: " << std::endl;
+					for(int i = 0; i < 4; i++){
+						std::cout << par[i] << " " << std::endl;
+					}
+				}
 
-	// let's get the chi squared and the corresponding fit parameters
-	std::cout << "chi-squared: " << fval << " | parameters: " << std::endl;
-	for(int i = 0; i < 4; i++){
-    std::cout << par[i] << " " << std::endl;
-	}
-}
-//
+				// Make a function that will add up the chi-squared from each station
+				// numStations -- how many stations you want to run
+				//
+				void sumChiSquared(int numStations){
 
-//using Double_t = double;
+						double chiTot = 0; // declare the total chi-squared
+						//start running and summing for each station
+						for(int i = 0; i < numStations; i++){
+						std::string filename = "/users/PAS0654/jflaherty13/forAlex/spiceDataForFit/A4_spiceReco.root"; //"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root";
+						// start by (re-)declaring the data names
+						Double_t* pulserDepth = nullptr;
+						Double_t* psi_median = nullptr;
+						Long64_t nEntries = 0;
+						Double_t* psi_errors = nullptr;
 
-int main(int argc, char** argv) {
+						// Call the function to extract values
+						extractPsi(filename, pulserDepth, psi_median, nEntries, psi_errors);
+						Double_t* psi_median_model = nullptr;
+						}
 
-// MACHTAY adding this to measure time to see if cutting stations is working
-using namespace std::chrono;
-auto start = high_resolution_clock::now(); // start time
+				}
 
-/*EXTRACTING JUSTIN'S DATA*/
+				// Let's make a function to call all of these fitting stuff for each station and produce a total chi-squared
+				// We need to have a vector that will hold the names of each root file: 
+				double loop_stations(){
+						std::string A4_filename = "/users/PAS0654/jflaherty13/forAlex/spiceDataForFit/A4_spiceReco.root"; //"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root";
+						Double_t* A4_pulserDepth = nullptr;
+						Double_t* A4_psi_median = nullptr;
+						Long64_t A4_nEntries = 0;
+						Double_t* A4_psi_errors = nullptr;
 
-    // Extracting data for A2 
+				}
 
-/*
-    std::string A2_filename = "/users/PAS0654/jflaherty13/forAlex/spiceDataForFit/A2_spiceReco.root"; //"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A2_spiceReco.root";
-    Double_t* A2_pulserDepth = nullptr;
-    Double_t* A2_psi_median = nullptr;
-    Long64_t A2_nEntries = 0;
-		Double_t* A2_psi_errors = nullptr;
-*/
-    // Call the function to extract values
-//    extractPsi(A2_filename, A2_pulserDepth, A2_psi_median, A2_nEntries, A2_psi_errors);
+				//using Double_t = double;
 
-    //Extracting data for A4
+				int main(int argc, char** argv) {
 
-    std::string A4_filename = "/users/PAS0654/jflaherty13/forAlex/spiceDataForFit/A4_spiceReco.root"; //"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root";
-    Double_t* A4_pulserDepth = nullptr;
-    Double_t* A4_psi_median = nullptr;
-    Long64_t A4_nEntries = 0;
-		Double_t* A4_psi_errors = nullptr;
+				// MACHTAY adding this to measure time to see if cutting stations is working
+				using namespace std::chrono;
+				auto start = high_resolution_clock::now(); // start time
 
-    // Call the function to extract values
-    extractPsi(A4_filename, A4_pulserDepth, A4_psi_median, A4_nEntries, A4_psi_errors);
-auto mid = high_resolution_clock::now(); // start time
-std::cout << "Mid time: " << duration_cast<microseconds>(mid - start).count()/(1e6) << std::endl;
-		// MACHTAY setting to 0 because just one index in cpol.cc now
-		// Should find a better way to do this later
-    int Station_Fit = 1;
-    Double_t par_fit[4] = {std::stod(argv[1]), std::stod(argv[2]), std::stod(argv[3]), std::stod(argv[4])}; //phi, theta, gamma, delta (x-pol)
-	// MACHTAY the below commented block works!
-	// Commenting to try functionalizing
-	Double_t* psi_median_model = nullptr;
-  //int result = psiModel(argc, argv, par_fit, A4_pulserDepth, psi_median_model, Station_Fit, A4_nEntries);
-//	double chi2 = getChiSquared(argc, argv, par_fit, psi_median_model, A4_pulserDepth, Station_Fit, A4_nEntries, A4_psi_median);
+				/*EXTRACTING JUSTIN'S DATA*/
 
-  // MACHTAY ok let's set up the TMinuit thing to do the optimization
-	// Praise ChatGPT
-  //We have to do this first (apparently):
-  // Initialize context
-  ChiSquareContext context;
-	context.argc = argc;
-  context.argv = argv;
-  context.A4_depths = A4_pulserDepth;
-	context.A4_psi_median = A4_psi_median;
-	context.num_entries = A4_nEntries;
-	context.Station = 1;
-	context.median_psi_model = new Double_t[A4_nEntries];
-	context.A4_psi_errors = A4_psi_errors;
-  context.logFile.open("minimization_log.txt");
-	// Set the global context pointer
-	gContext = &context;
+						// Extracting data for A2 
 
-	// Ok, let's try making there two modes
-	// There can be a fit mode and a single run mode
-	// The single run mode will be used for a coarse grid search
-	int MODE = std::stoi(argv[5]);
+				/*
+						std::string A2_filename = "/users/PAS0654/jflaherty13/forAlex/spiceDataForFit/A2_spiceReco.root"; //"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A2_spiceReco.root";
+						Double_t* A2_pulserDepth = nullptr;
+						Double_t* A2_psi_median = nullptr;
+						Long64_t A2_nEntries = 0;
+						Double_t* A2_psi_errors = nullptr;
+				*/
+						// Call the function to extract values
+				//    extractPsi(A2_filename, A2_pulserDepth, A2_psi_median, A2_nEntries, A2_psi_errors);
+
+						//Extracting data for A4
+
+						// Ok, let's try making this into a function.
+						std::string A4_filename = "/users/PAS0654/jflaherty13/forAlex/spiceDataForFit/A4_spiceReco.root"; //"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root";
+						Double_t* A4_pulserDepth = nullptr;
+						Double_t* A4_psi_median = nullptr;
+						Long64_t A4_nEntries = 0;
+						Double_t* A4_psi_errors = nullptr;
+
+						// Call the function to extract values
+						extractPsi(A4_filename, A4_pulserDepth, A4_psi_median, A4_nEntries, A4_psi_errors);
+						// Let me print out the depths from the measured data:
+						std::cout << "A4 pulser depth: ";
+						for (int i = 0; i < A4_nEntries; i++) {
+								std::cout << A4_pulserDepth[i] << ", ";
+					}
+						std::cout << std::endl;
+						std::cout << "A4 pulser psi: ";
+						for (int i = 0; i < A4_nEntries; i++) {
+								std::cout << A4_psi_median[i] << ", ";
+					}
+						std::cout << std::endl;
+						std::cout << "A4 pulser errors: ";
+						for (int i = 0; i < A4_nEntries; i++) {
+								std::cout << A4_psi_median[i] - A4_psi_errors[i] << ", ";
+					}
+						std::cout << std::endl;
+				auto mid = high_resolution_clock::now(); // start time
+				std::cout << "Mid time: " << duration_cast<microseconds>(mid - start).count()/(1e6) << std::endl;
+						// MACHTAY setting to 0 because just one index in cpol.cc now
+						// Should find a better way to do this later
+						int Station_Fit = 1;
+						Double_t par_fit[4] = {std::stod(argv[1]), std::stod(argv[2]), std::stod(argv[3]), std::stod(argv[4])}; //phi, theta, gamma, delta (x-pol)
+					// MACHTAY the below commented block works!
+					// Commenting to try functionalizing
+					Double_t* psi_median_model = nullptr;
+					//int result = psiModel(argc, argv, par_fit, A4_pulserDepth, psi_median_model, Station_Fit, A4_nEntries);
+				//	double chi2 = getChiSquared(argc, argv, par_fit, psi_median_model, A4_pulserDepth, Station_Fit, A4_nEntries, A4_psi_median);
+
+					int MODE = std::stoi(argv[5]);
+					Int_t FIT_MODE = std::stoi(argv[6]); // variance vs expected in denominator 
+					// MACHTAY ok let's set up the TMinuit thing to do the optimization
+					// Praise ChatGPT
+					//We have to do this first (apparently):
+					// Initialize context
+					ChiSquareContext context;
+					context.argc = argc;
+					context.argv = argv;
+					context.A4_depths = A4_pulserDepth;
+					context.A4_psi_median = A4_psi_median;
+					context.num_entries = A4_nEntries;
+					context.Station = 1;
+					context.median_psi_model = new Double_t[A4_nEntries];
+					context.A4_psi_errors = A4_psi_errors;
+					context.FIT_MODE = FIT_MODE;
+					context.logFile.open("minimization_log.txt");
+					// Set the global context pointer
+					gContext = &context;
+
+					// Ok, let's try making there two modes
+					// There can be a fit mode and a single run mode
+					// The single run mode will be used for a coarse grid search
+//					int MODE = std::stoi(argv[5]);
+//					int FIT_MODE = std::stoi(argv[6]); // variance vs expected in denominator 
+					std::cout << "FIT_MODE: " << FIT_MODE << std::endl;
 	if(MODE == 0){
+					// Ok, let's loop over the number of stations
+
 					// Set up TMinuit for optimization
 					TMinuit minuit(4); // 4 parameters to fit
 					minuit.SetFCN(chiSquareFunction);
@@ -346,7 +307,7 @@ std::cout << "Mid time: " << duration_cast<microseconds>(mid - start).count()/(1
 	}
 	else {
 				int result = psiModel(argc, argv, par_fit, A4_pulserDepth, psi_median_model, Station_Fit, A4_nEntries);
-				getChiSquared(argc, argv, par_fit, psi_median_model, A4_pulserDepth, Station_Fit, A4_nEntries, A4_psi_median, A4_psi_errors);
+				getChiSquared(argc, argv, par_fit, psi_median_model, A4_pulserDepth, Station_Fit, A4_nEntries, A4_psi_median, A4_psi_errors, FIT_MODE);
 
 	}
 
