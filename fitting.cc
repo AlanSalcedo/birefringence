@@ -191,6 +191,8 @@ void sumChiSquared(int numStations){
 				//using Double_t = double;
 
 int main(int argc, char** argv) {
+				int MODE = stoi(argv[5]);
+				Int_t FIT_MODE = stoi(argv[6]); // variance vs expected in denominator 
 				int NUM_STATIONS = stoi(argv[7]);
 				// MACHTAY adding this to measure time to see if cutting stations is working
 				using namespace chrono;
@@ -199,13 +201,18 @@ int main(int argc, char** argv) {
 				/*EXTRACTING JUSTIN'S DATA*/
 
 						//Extracting data for A4
-						// Ok, let's try making this into a function.
+						// For just one station:
 						string filename = "/users/PAS0654/jflaherty13/forAlex/spiceDataForFit/A4_spiceReco.root"; //"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root";
 						Double_t* pulserDepth = nullptr;
 						Double_t* psi_median = nullptr;
 						Long64_t nEntries = 0;
 						Double_t* psi_errors = nullptr;
   					Double_t* psi_median_model = nullptr;
+						// Call the function to extract values
+//						extractPsi(filename, pulserDepth, psi_median, nEntries, psi_errors);
+				    // End just for one station
+
+				    // Try doing this for multiple staitons:
 						// Make vectors instead
             // We need to have vectors for each of the data features: 
 				    vector<string> filenames = {"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A2_spiceReco.root", "/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root"}; //{ "/users/PAS0654/jflaherty13/forAlex/spiceDataForFit/A2_spiceReco.root", "/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root"};
@@ -219,23 +226,33 @@ int main(int argc, char** argv) {
 						// Now try extracting using vectors!
 						for(int i = 0; i < NUM_STATIONS; i++){
 								extractPsi(filenames[i], pulserDepths[i], psi_medians[i], numEntries[i], Psi_errors[i]);
+								cout << "A" << (i+1)*2 << " num entries: " << numEntries[i] << endl;								cout << "A" << (i+1)*2 << " depths: " << endl;
+								for (Long64_t j = 0; j < numEntries[i]; j++) {
+												        cout << pulserDepths[i][j] << " ";
+						    }
+								cout << endl;
+//								cout << "A" << (i+1)*2 << " num entries: " << psi_medians[i] << endl;
+
             }
 						// Let me print out the depths from the measured data:
-						cout << "A4 pulser depth: ";
-						for (int i = 0; i < nEntries; i++) {
-								cout << pulserDepth[i] << ", ";
-					}
-						cout << endl;
-						cout << "A4 pulser psi: ";
-						for (int i = 0; i < nEntries; i++) {
-								cout << psi_median[i] << ", ";
-					}
-						cout << endl;
-						cout << "A4 pulser errors: ";
-						for (int i = 0; i < nEntries; i++) {
-								cout << psi_median[i] - psi_errors[i] << ", ";
-					}
-						cout << endl;
+						for(int j = 0; j < NUM_STATIONS; j++){
+										cout << "First filename: " << filenames[j] << endl;
+										cout << "A" << (j+1)*2 << " pulser depth: ";
+										for (int i = 0; i < numEntries[j]; i++) {
+												cout << pulserDepths[j][i] << ", ";
+									}
+										cout << endl;
+										cout << "A" << (j+1)*2 << " pulser psi: ";
+										for (int i = 0; i < numEntries[j]; i++) {
+												cout << psi_medians[j][i] << ", ";
+									}
+										cout << endl;
+										cout << "A" << (j+1)*2 << " pulser max: ";
+										for (int i = 0; i < numEntries[j]; i++) {
+												cout <<  Psi_errors[j][i] << ", ";
+									}
+										cout << endl;
+				    }
 				auto mid = high_resolution_clock::now(); // start time
 				cout << "Mid time: " << duration_cast<microseconds>(mid - start).count()/(1e6) << endl;
 						// MACHTAY setting to 0 because just one index in cpol.cc now
@@ -243,14 +260,21 @@ int main(int argc, char** argv) {
 						int Station_Fit = 1;
 						vector<int> Station_Fits(filenames.size(), 1); 
 						Double_t par_fit[4] = {stod(argv[1]), stod(argv[2]), stod(argv[3]), stod(argv[4])}; //phi, theta, gamma, delta (x-pol)
-//						vector<Double_t> par_fits(filenames.size(), par_fit);
+						//vector<Double_t> par_fits(filenames.size(), par_fit);
+						vector<vector<Double_t>> par_fits(filenames.size(), vector<Double_t>(4));
+
+						//Initialize the parameters for each station
+						for (int i = 0; i < filenames.size(); i++) {
+						    par_fits[i][0] = stod(argv[1]);
+						    par_fits[i][1] = stod(argv[2]);
+						    par_fits[i][2] = stod(argv[3]);
+						    par_fits[i][3] = stod(argv[4]);
+						}
 					// MACHTAY the below commented block works!
 					// Commenting to try functionalizing
 					//int result = psiModel(argc, argv, par_fit, A4_pulserDepth, psi_median_model, Station_Fit, A4_nEntries);
 				//	double chi2 = getChiSquared(argc, argv, par_fit, psi_median_model, A4_pulserDepth, Station_Fit, A4_nEntries, A4_psi_median);
 
-					int MODE = stoi(argv[5]);
-					Int_t FIT_MODE = stoi(argv[6]); // variance vs expected in denominator 
 					// MACHTAY ok let's set up the TMinuit thing to do the optimization
 					// Praise ChatGPT
 					//We have to do this first (apparently):
@@ -319,9 +343,9 @@ int main(int argc, char** argv) {
 				// Let's try looping over multiple stations!
 				cout << "In else statement!" << endl;
 				for(int i = 0; i < NUM_STATIONS; i++){
-				int station = Station_Fits[i] + i;
-				int result = psiModel(argc, argv, par_fit, pulserDepths[i], psi_median_models[i], station, numEntries[i]);
-				getChiSquared(argc, argv, par_fit, psi_median_model, pulserDepth, Station_Fit, nEntries, psi_median, psi_errors, FIT_MODE);
+				    int station = Station_Fits[i] + i;
+				    int result = psiModel(argc, argv, par_fits[i].data(), pulserDepths[i], psi_median_models[i], station, numEntries[i]);
+				getChiSquared(argc, argv, par_fits[i].data(), psi_median_models[i], pulserDepths[i], Station_Fit, numEntries[i], psi_medians[i], Psi_errors[i], FIT_MODE);
 				}
 	}
 
