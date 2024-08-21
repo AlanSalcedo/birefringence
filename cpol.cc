@@ -193,13 +193,13 @@ int psiModel(int argc, char** argv, const Double_t* par_fit, Double_t* &fit_dept
   
 	// MACHTAY changing number of stations to 1 pls work dammit
   const int NSTATIONS=2; // 5 ARA stations + ARIANNA SP
-  const int minstation=0; // which to start with
+  const int minstation=1; // which to start with
   const int maxstation=1; // which to end with
   int igreatestdepth[NSTATIONS];
   int imostshallowdepth[NSTATIONS];
 	// MACHTAY LOOK HERE
 	// Changing array to just have 1 distance
-  double horizontal_distances[NSTATIONS]={2353, 3199};//{1257.,2353.,3146.,3199.,5179.8892,653.804525};
+  double horizontal_distances[NSTATIONS]={2353., 3199.};//{1257.,2353.,3146.,3199.,5179.8892,653.804525};
   string snames[NSTATIONS]={"A2", "A4"};//{"A1","A2","A3","A4","A5","ARIANNA"};
   // from geoff's github, for ARIANNA station 51:
   // r = 653.804524 # meters
@@ -350,6 +350,7 @@ int psiModel(int argc, char** argv, const Double_t* par_fit, Double_t* &fit_dept
   //  for (int i=0;i<NSTATIONS;i++) {
   for (int i=minstation;i<=maxstation;i++) {
 
+
     pulsertostationhat_specialdepth[i][0]=(station_coords[i][0]-pulser_coords[0]); // this will be a negative number
     pulsertostationhat_specialdepth[i][1]=(station_coords[i][1]-pulser_coords[1]); 
     pulsertostationhat_specialdepth[i][2]=station_depths[i]-(DEPTH);
@@ -384,6 +385,7 @@ int psiModel(int argc, char** argv, const Double_t* par_fit, Double_t* &fit_dept
     //cout << "for alpha=PI/2, deltan is " << getDeltaN(PI/2.) << "\n";
 
     //    cout << "At a 1.5km pulser depth, I would expect oscillations in A" << i << " spectra every "  << 2*CLIGHT/(PI*deltan_exp[i]*sqrt(1500*1500+horizontal_distances[i]*horizontal_distances[i]))/1.E6 << " MHz.\n";
+
 
   } // end loop over 5 stations
   double x_arianna=650.*cos(angle_iceflow);
@@ -2285,7 +2287,6 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
 
 
 	    } // if it's the right depth
-
 	  } // if number of steps >0
 	  else {
 	    rhat_thisstep=rhat[i];
@@ -2991,6 +2992,7 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
       E_e1.Rotate(angle_rotateD,rotateD); // Finish Step 8.  Rotate D^prime(0) to align with D
       E_e2.Rotate(angle_rotateD,rotateD); // Finish Step 8.  Rotate D^prime(0) to align with D
 
+			
       //     cout << "after rotation, D_sum is " << D_sum[0] << "\t" << D_sum[1] << "\t" << D_sum[2] << "\n";
 
       TVector3 tempvec=khat_ray1_1;
@@ -3552,7 +3554,6 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
       */
 
     } // end loop over depths
-      
 
     //    graypath_z_x[i]=new TGraph (vraypos[i][0].size(),&vraypos[i][0][0],&vraypos[i][2][0]);
     //graypath_z_x[i]->SetLineColor(icolors[i]);
@@ -3608,7 +3609,6 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
     gdotShats_tx[i]=new TGraph(vdepth[i].size(),&vdepth[i][0],&vdotShats_tx[i][0]);
     gdotEhats_tx[i]=new TGraph(vdepth[i].size(),&vdepth[i][0],&vdotEhats_tx[i][0]);
     gdotDhats_tx[i]=new TGraph(vdepth[i].size(),&vdepth[i][0],&vdotDhats_tx[i][0]);
-
 
 
     //    cout << "sizes are " << vdepth[i].size() << "\t" << vmag_atten[i].size() << "\n";
@@ -3744,7 +3744,6 @@ if (pulsertostationhat_specialdepth[5].Mag()<HOWSMALLISTOOSMALL)
       }
       //std::cout << std::endl; // Separate each 'i' with a blank line
     }
-
     //cout << "depth, epsilon1_rx" << endl;
     for (int i = minstation; i <= maxstation; ++i) {
       //cout << "Station " << i+1 << endl;
@@ -3792,7 +3791,10 @@ std::cout << "Station"<< i+1 << std::endl;
 //ASG: Fitting
 //int num_depths = fit_depths.size();
 //cout << "num_depths: " << num_entries_fit << endl;
-std::vector<Double_t> epsilon_differences = computeEpsilonDifferences(gepsilon1_tx[Station_Fit-1], gepsilon1_rx[Station_Fit-1], fit_depths, num_entries_fit);
+// Former: 
+//std::vector<Double_t> epsilon_differences = computeEpsilonDifferences(gepsilon1_tx[Station_Fit - 1], gepsilon1_rx[Station_Fit - 1], fit_depths, num_entries_fit);
+std::vector<Double_t> epsilon_differences = computeEpsilonDifferences(gepsilon1_tx[minstation], gepsilon1_rx[minstation], fit_depths, num_entries_fit);
+				std::cout << "Epsilon differences: ";
     for (size_t i = 0; i < epsilon_differences.size(); ++i) {
         std::cout << epsilon_differences[i] << " ";
     }
@@ -3830,8 +3832,7 @@ return 0;
     //double vmax[6]={500.,1500.,1000.,1500.,4000.,10.};
    
 	// MACHTAY change these lengths too
-  double pmax[2][NSTATIONS]={{1.E5, 1.E5},{1.E5, 1.E5}}/*{{1.E5,1.E5,1.E5,1.E5,1.E5,1.E5},
-			     {1.E5,1.E5,1.E5,1.E5,1.E5,1.E5}}*/;
+  double pmax[2][NSTATIONS]={{1.E5, 1.E5},{1.E5, 1.E5}}; /*{{1.E5,1.E5,1.E5,1.E5,1.E5,1.E5},{1.E5,1.E5,1.E5,1.E5,1.E5,1.E5}}*/;
 
 
   //  for (int i=0;i<NSTATIONS;i++) {
@@ -4347,8 +4348,8 @@ return 0;
   string sbiaxial[NAXIAL]={"isotropic_","uniaxial_",""};
   string sconstant[NCONSTANT]={"","constant_"};
  
-  string sdir="plots_" + sconstant[CONSTANTINDICATRIX] + sbiaxial[BIAXIAL+1] + to_string((int)(freq/1.E6)) + "MHz_angletx" + to_string(CROSSPOLANGLE_TX_INT) + "_anglerx" + to_string(CROSSPOLANGLE_RX_INT) + "/";
-  string sname=sdir+"c1.pdf";
+  string sdir="/users/PAS0654/machtay1/Alan_Birefringence/birefringence_2/plots/";// + sconstant[CONSTANTINDICATRIX] + sbiaxial[BIAXIAL+1] + to_string((int)(freq/1.E6)) + "MHz_angletx" + to_string(CROSSPOLANGLE_TX_INT) + "_anglerx" + to_string(CROSSPOLANGLE_RX_INT) + "/";
+  string sname=sdir+"c1.png";
   c1->Print(sname.c_str());
   cout << "just printed c1.\n";
   TCanvas *c1b=new TCanvas("c1b","c1b",800,800);
@@ -4359,9 +4360,10 @@ return 0;
     g_atten_beam_crosspol_func[istations]->Draw("same");
   }
     
-  sname=sdir+"c1b.pdf";
+  sname=sdir+"c1b.png";
   c1b->Print(sname.c_str());
   cout << "printed c1b.\n";
+	c1b->SaveAs("../plots/Fig_6.png");
 
 
   TCanvas *c3=new TCanvas("c3","c3",800,800);
@@ -4407,7 +4409,7 @@ return 0;
 
   }
   
-  sname=sdir+"c3.pdf";
+  sname=sdir+"c3.png";
   c3->Print(sname.c_str());
     
     
@@ -4446,7 +4448,7 @@ return 0;
   g_obs->SetLineColor(kBlack);
   g_obs->SetLineWidth(3);
   g_obs->Draw("pesame");
-  sname=sdir+"compare.pdf";
+  sname=sdir+"compare.png";
   c2->Print(sname.c_str());
 
 
@@ -4466,7 +4468,7 @@ return 0;
   //     g_nsolutions_distances[i]->Draw("psame");
   //   }
 
-  //   c4->Print("nsolutions.pdf");
+  //   c4->Print("nsolutions.png");
 
 //     TCanvas *c5=new TCanvas("c5","c5",800,800);
   
@@ -4505,7 +4507,7 @@ return 0;
 //     }
 
 
-//     sname=sdir+"angle_khat_0_khat_1_2.pdf";
+//     sname=sdir+"angle_khat_0_khat_1_2.png";
 //     c5->Print(sname.c_str());
     
 //     TCanvas *c6=new TCanvas("c6","c6",800,800);
@@ -4530,7 +4532,7 @@ return 0;
 //       g_angle1_2[i]->Draw("lsame");    
 
 //     }
-//     sname=sdir+"angle_khat_1_1_khat_1_2.pdf";
+//     sname=sdir+"angle_khat_1_1_khat_1_2.png";
 //     c6->Print(sname.c_str());
 
      TCanvas *c7=new TCanvas("c7","c7",800,800);
@@ -4591,7 +4593,7 @@ return 0;
      legend7->Draw("same");
      legend7b->Draw("same");
 
-     sname=sdir+"angle_Shat_khat.pdf";
+     sname=sdir+"angle_Shat_khat.png";
      c7->Print(sname.c_str());
 
 
@@ -4637,7 +4639,7 @@ return 0;
 //       //else
 // 	graypath_y_x[istations]->Draw("lsame");	
 //     }
-//     sname=sdir+"raypath.pdf";
+//     sname=sdir+"raypath.png";
 //     c8->Print(sname.c_str());
 
 
@@ -4680,7 +4682,7 @@ return 0;
 
     }
     legend26a->Draw("same");
-    sname=sdir+"sumphase.pdf";
+    sname=sdir+"sumphase.png";
     c9->Print(sname.c_str());
     c9->SaveAs("sumphase.jpg");	
 
@@ -4708,7 +4710,7 @@ return 0;
       g_notflipped[istations]->Draw("lsame");
 	
     }
-    sname=sdir+"notflipped.pdf";
+    sname=sdir+"notflipped.png";
     c9a->Print(sname.c_str());
 
     TCanvas *c9b=new TCanvas("c9b","c9b",800,800);    
@@ -4729,7 +4731,7 @@ return 0;
       g_sumlength[istations]->Draw("lsame");
 	
     }
-    sname=sdir+"sumlength.pdf";
+    sname=sdir+"sumlength.png";
     c9b->Print(sname.c_str());
 
     TCanvas *c10=new TCanvas("c10","c10",800,800);
@@ -4758,7 +4760,7 @@ return 0;
       //}
 	
     }
-    sname=sdir+"spectra.pdf";
+    sname=sdir+"spectra.png";
     c10->Print(sname.c_str());
    TCanvas *c11=new TCanvas("c11","c11",800,800);
     
@@ -4793,7 +4795,7 @@ return 0;
       //g_deltan[istations]->Draw("lsame");
 	
     }
-    sname=sdir+"deltan.pdf";
+    sname=sdir+"deltan.png";
     c11->Print(sname.c_str());
 
     TCanvas *c11b=new TCanvas("c11b","c11b",800,800);
@@ -4816,7 +4818,7 @@ return 0;
       //g_deltan[istations]->Draw("lsame");
 	
     }
-    sname=sdir+"attenlengths.pdf";
+    sname=sdir+"attenlengths.png";
     c11b->Print(sname.c_str());
 
     TCanvas *c11c=new TCanvas("c11c","c11c",800,800);
@@ -4834,7 +4836,7 @@ return 0;
       g_notflipped_alongpath[istations]->Draw("lsame");
 	
     }
-    sname=sdir+"notflipped_alongpath.pdf";
+    sname=sdir+"notflipped_alongpath.png";
     c11c->Print(sname.c_str());
 
    TCanvas *c11d=new TCanvas("c11d","c11d",800,800);
@@ -4856,7 +4858,7 @@ return 0;
       g_theta2_alongpath[istations]->Draw("lsame");
 	
     }
-    sname=sdir+"thetas_alongpath.pdf";
+    sname=sdir+"thetas_alongpath.png";
     c11d->Print(sname.c_str());
 
   TCanvas *c11e=new TCanvas("c11e","c11e",800,800);
@@ -4881,7 +4883,7 @@ return 0;
       g_thetape2_alongpath[istations]->Draw("lsame");
 	
     }
-    sname=sdir+"thetas_pe_alongpath.pdf";
+    sname=sdir+"thetas_pe_alongpath.png";
     c11e->Print(sname.c_str());
 
 TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
@@ -4903,7 +4905,7 @@ TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
       g_thetape2_phipe2_alongpath[istations]->Draw("lsame");
 	
     }
-    sname=sdir+"thetas_phis_pe_alongpath.pdf";
+    sname=sdir+"thetas_phis_pe_alongpath.png";
     c11f->Print(sname.c_str());
 
     TCanvas *c12=new TCanvas("c12","c12",800,800);
@@ -4926,7 +4928,7 @@ TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
       //g_deltan[istations]->Draw("lsame");
       
     }
-    sname=sdir+"index.pdf";
+    sname=sdir+"index.png";
     c12->Print(sname.c_str());
 
    TCanvas *c13=new TCanvas("c13","c13",800,800);
@@ -4984,7 +4986,7 @@ TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
       g_receive_launch[istations]->Draw("lsame");
     }  
 
-    sname=sdir+"receive_launch.pdf";
+    sname=sdir+"receive_launch.png";
     c13->Print(sname.c_str());
 
 
@@ -5007,7 +5009,7 @@ TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
     g_V->Draw("lsame");
       
     
-    sname=sdir+"V.pdf";
+    sname=sdir+"V.png";
     c14->Print(sname.c_str());
 
 
@@ -5140,7 +5142,7 @@ TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
       legend2->AddEntry("gn3","n_{ #gamma}","l");
       legend2->Draw("same");
 
-      sname=sdir+"n123_zoomed.pdf";
+      sname=sdir+"n123_zoomed.png";
       c15->Print(sname.c_str());
 
       // TCanvas *c16b=new TCanvas("c16b","c16b",800,400);
@@ -5152,7 +5154,7 @@ TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
       // h16->Draw();
 
 
-      // c16b->Print("n123_sidebyside.pdf");
+      // c16b->Print("n123_sidebyside.png");
 
 
 
@@ -5189,7 +5191,7 @@ TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
 	g_output8[istations]->Draw("lsame");
       }
 
-      sname=sdir+"outputs.pdf";
+      sname=sdir+"outputs.png";
       c17->Print(sname.c_str());
 
       TCanvas *c18=new TCanvas("c18","c18",800,800);
@@ -5228,7 +5230,7 @@ TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
 
 	
       }
-      sname=sdir+"anglesontheclock.pdf";
+      sname=sdir+"anglesontheclock.png";
       c18->Print(sname.c_str());
 
 
@@ -5250,7 +5252,7 @@ TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
 	gtxdepth_dispersion2[istations]->SetLineWidth(2);
 	gtxdepth_dispersion2[istations]->Draw("lsame");
       }
-      sname=sdir+"dispersionangles.pdf";
+      sname=sdir+"dispersionangles.png";
       c19->Print(sname.c_str());
 
       TCanvas *c20=new TCanvas("c20","c20",800,800);
@@ -5297,7 +5299,7 @@ TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
 
 	  //	}
       }
-      sname=sdir+"anglesontheSclock.pdf";
+      sname=sdir+"anglesontheSclock.png";
       c20->Print(sname.c_str());
       TCanvas *c21=new TCanvas("c21","c21",800,800);
       TH2D *h21a=new TH2D("h21","h21",100,-1800.,0.,100,-1.1,1.1);
@@ -5322,7 +5324,7 @@ TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
 	gV1_r2[istations]->Draw("lsame");	
       }
 
-      sname=sdir+"V1.pdf";
+      sname=sdir+"V1.png";
       c21->Print(sname.c_str());
 
       TCanvas *c22=new TCanvas("c22","c22",800,800);
@@ -5349,7 +5351,7 @@ TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
 	
       }
 
-      sname=sdir+"V2.pdf";
+      sname=sdir+"V2.png";
       c22->Print(sname.c_str());
 
       TCanvas *c23=new TCanvas("c23","c23",800,800);
@@ -5383,7 +5385,7 @@ TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
 	
       }
 
-      sname=sdir+"envelopes.pdf";
+      sname=sdir+"envelopes.png";
       c23->Print(sname.c_str());
  
 
@@ -5465,7 +5467,7 @@ gPad->SetLeftMargin(0.15);
 	//}
       }
       legend26->Draw("same");
-      sname=sdir+"epsilons_sidebyside.pdf";
+      sname=sdir+"epsilons_sidebyside.png";
       c24->Print(sname.c_str());
 
       TCanvas *c24b=new TCanvas("c24b","c24b",1600,800);
@@ -5544,7 +5546,7 @@ gPad->SetLeftMargin(0.15);
       }
       legend26b->Draw("same");      
       legend26c->Draw("same");      
-      sname=sdir+"diffepsilons_sidebyside.pdf";
+      sname=sdir+"diffepsilons_sidebyside.png";
       c24b->Print(sname.c_str());
 
 
@@ -5590,7 +5592,7 @@ gPad->SetLeftMargin(0.15);
 	gdotDhats_tx[istations]->SetLineWidth(2);
 	gdotDhats_tx[istations]->Draw("lsame");	
       }
-      sname=sdir+"dotproducts.pdf";
+      sname=sdir+"dotproducts.png";
       c27->Print(sname.c_str());
 
       TCanvas *c28=new TCanvas("c28","c28",800,800);
@@ -5599,7 +5601,7 @@ gPad->SetLeftMargin(0.15);
       for (int istations=minstation;istations<=maxstation;istations++) {
 	g_depth_istep[istations]->Draw("lsame");
       }
-      sname=sdir+"depth_idepth.pdf";
+      sname=sdir+"depth_idepth.png";
       c28->Print(sname.c_str());
 
       TCanvas *c29=new TCanvas("c29","c29",800,800);
@@ -5625,7 +5627,7 @@ gPad->SetLeftMargin(0.15);
 	gtxdepth_beam2[istations]->Draw("lsame");
 
       }
-      sname=sdir+"beams_tx.pdf";
+      sname=sdir+"beams_tx.png";
       c29->Print(sname.c_str());
 
       TCanvas *c30=new TCanvas("c30","c30",800,800);
@@ -5651,7 +5653,7 @@ gPad->SetLeftMargin(0.15);
 	grxdepth_beam2[istations]->Draw("lsame");
 
       }
-      sname=sdir+"beams_rx.pdf";
+      sname=sdir+"beams_rx.png";
       c30->Print(sname.c_str());
 
       TCanvas *c31=new TCanvas("c31","c31",800,800);
@@ -5671,7 +5673,7 @@ gPad->SetLeftMargin(0.15);
 	
       }
 
-      sname=sdir+"dispersionangles.pdf";
+      sname=sdir+"dispersionangles.png";
       c31->Print(sname.c_str());
 
      TCanvas *c32=new TCanvas("c32","c32",800,800);
@@ -5710,7 +5712,7 @@ gPad->SetLeftMargin(0.15);
 
 	
       }
-      sname=sdir+"anglesontheclock_rx.pdf";
+      sname=sdir+"anglesontheclock_rx.png";
       c32->Print(sname.c_str());
 
      TCanvas *c33=new TCanvas("c33","c33",800,800);
@@ -5757,7 +5759,7 @@ gPad->SetLeftMargin(0.15);
 
 	  //	}
       }
-      sname=sdir+"anglesontheSclock_rx.pdf";
+      sname=sdir+"anglesontheSclock_rx.png";
       c33->Print(sname.c_str());
 
      TCanvas *c34=new TCanvas("c34","c34",800,800);
@@ -5791,7 +5793,7 @@ gPad->SetLeftMargin(0.15);
 	gpower_r2[istations]->SetLineWidth(2);
 	gpower_r2[istations]->Draw("lsame");		
       }
-      sname=sdir+"powers.pdf";
+      sname=sdir+"powers.png";
       c34->Print(sname.c_str());
 
     TCanvas *c35=new TCanvas("c35","c35",800,800);
@@ -5836,7 +5838,7 @@ gPad->SetLeftMargin(0.15);
 	
       }
 
-      sname=sdir+"venvelopes.pdf";
+      sname=sdir+"venvelopes.png";
       c35->Print(sname.c_str());
 
      TCanvas *c36=new TCanvas("c36","c36",800,800);
@@ -5888,7 +5890,7 @@ gPad->SetLeftMargin(0.15);
 	gvoltage_r2[istations]->Draw("lsame");		
       }
 
-      sname=sdir+"voltages.pdf";
+      sname=sdir+"voltages.png";
       c36->Print(sname.c_str());
 
       TCanvas *c36_a5=new TCanvas("c36_a5","c36_a5",800,800);
@@ -5899,7 +5901,7 @@ gPad->SetLeftMargin(0.15);
       gvenvelope_plus_r1[4]->Draw("lsame");
       gvoltage_r1[4]->Draw("lsame");
 
-      sname=sdir+"voltages_a5.pdf";
+      sname=sdir+"voltages_a5.png";
       c36_a5->Print(sname.c_str());
 
       //      TCanvas *c37=makePretty2Panel();
@@ -6050,7 +6052,7 @@ gPad->SetLeftMargin(0.15);
 
       legend38->Draw("same");
 
-      sname=sdir+"HPolVPolvoltages_sidebyside.pdf";
+      sname=sdir+"HPolVPolvoltages_sidebyside.png";
 
       c37->Print(sname.c_str());
 
@@ -6209,7 +6211,7 @@ gPad->SetLeftMargin(0.15);
 
       legend38d->Draw("same");
 
-      sname=sdir+"HPolVPolfields_sidebyside.pdf";
+      sname=sdir+"HPolVPolfields_sidebyside.png";
 
       c37b->Print(sname.c_str());
 
@@ -6239,7 +6241,7 @@ gPad->SetLeftMargin(0.15);
 	
       }
 
-      sname=sdir+"polarizations.pdf";
+      sname=sdir+"polarizations.png";
       c40->Print(sname.c_str());
 
 
@@ -6257,7 +6259,7 @@ gPad->SetLeftMargin(0.15);
      gpolarization_reversedepth_Psi_rx[5]->SetLineWidth(3);
      gpolarization_reversedepth_Psi_rx[5]->Draw("lsame");
      
-     sname=sdir+"polarization_arianna.pdf";
+     sname=sdir+"polarization_arianna.png";
      c41->Print(sname.c_str());
 
      char name[100];

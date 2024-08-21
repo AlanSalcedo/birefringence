@@ -172,6 +172,7 @@ void sumChiSquared(int numStations){
 }
 
 
+/*
 // Let's make a function to call all of these fitting stuff for each station and produce a total chi-squared
 				// We need to have vectors for each of the data features: 
 				vector<string> filenames = {"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root"}; //{ "/users/PAS0654/jflaherty13/forAlex/spiceDataForFit/A2_spiceReco.root", "/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root"};
@@ -189,6 +190,7 @@ void sumChiSquared(int numStations){
 				}
 
 				//using Double_t = double;
+*/
 
 int main(int argc, char** argv) {
 				int MODE = stoi(argv[5]);
@@ -215,7 +217,7 @@ int main(int argc, char** argv) {
 				    // Try doing this for multiple staitons:
 						// Make vectors instead
             // We need to have vectors for each of the data features: 
-				    vector<string> filenames = {"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A2_spiceReco.root", "/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root"}; //{ "/users/PAS0654/jflaherty13/forAlex/spiceDataForFit/A2_spiceReco.root", "/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root"};
+				    vector<string> filenames = {"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root"};//{"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A2_spiceReco.root", "/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root"}; //{ "/users/PAS0654/jflaherty13/forAlex/spiceDataForFit/A2_spiceReco.root", "/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root"};
 				    vector<Double_t*> pulserDepths(filenames.size(), nullptr);
 		    		vector<Double_t*> psi_medians(filenames.size(), nullptr);
 			    	vector<Long64_t> numEntries(filenames.size(), 0);
@@ -344,8 +346,9 @@ int main(int argc, char** argv) {
 				cout << "In else statement!" << endl;
 				for(int i = 0; i < NUM_STATIONS; i++){
 				    int station = Station_Fits[i] + i;
-				    int result = psiModel(argc, argv, par_fits[i].data(), pulserDepths[i], psi_median_models[i], station, numEntries[i]);
-				getChiSquared(argc, argv, par_fits[i].data(), psi_median_models[i], pulserDepths[i], Station_Fit, numEntries[i], psi_medians[i], Psi_errors[i], FIT_MODE);
+						cout << "Station: " << station << endl;
+				//    int result = psiModel(argc, argv, par_fits[i].data(), pulserDepths[i], psi_median_models[i], station, numEntries[i]);
+				getChiSquared(argc, argv, par_fits[i].data(), psi_median_models[i], pulserDepths[i], station, numEntries[i], psi_medians[i], Psi_errors[i], FIT_MODE);
 				}
 	}
 

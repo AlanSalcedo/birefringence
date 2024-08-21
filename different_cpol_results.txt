@@ -1,0 +1,56 @@
+## First way
+## In cpol.cc: 
+  const int NSTATIONS=1; // 5 ARA stations + ARIANNA SP
+  const int minstation=0; // which to start with
+  const int maxstation=0; // which to end with
+  double horizontal_distances[NSTATIONS]={3199.};//{2353., 3199.};//{1257.,2353.,3146.,3199.,5179.8892,653.804525};
+  string snames[NSTATIONS]={"A4"};//{"A2", "A4"};//{"A1","A2","A3","A4","A5","ARIANNA"};
+//    {38754., 51051.}, // in feet
+    //{35481., 45369.},
+//    {32200., 51053.},
+    {35478., 56737.},
+//    {32356., 39746.},
+double vmax[2][NSTATIONS]={{40.}//{{40., 40.}//{{100.,40.,40.,40.,40.,100.},
+  //double vmax[2][NSTATIONS]={{400.,400.,400.,400.,100.,25.},
+  //double vmax[2][NSTATIONS]={{10.,10.,10.,10.,1.,1.},
+             //          {100.,100.,100.,100.,100.,100.}};
+           /*{100.,40.,40.,40.,40.,100.}*/};
+double pmax[2][NSTATIONS]={{1.E5},{1.E5}};//{{1.E5, 1.E5},{1.E5, 1.E5}}; /*{{1.E5,1.E5,1.E5,1.E5,1.E5,1.E5},{1.E5,1.E5,1.E5,1.E5,1.E5,1.E5}}*/;
+
+## In fitting.cc
+vector<string> filenames = {"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root"}
+
+## Run with: ./fit.exe 0 0 0 0 1 0 1 
+
+## Results when using A4 data:
+Elements of psi_median_model:
+7.10317 10.7975 10.2567 7.07485 9.63109 14.4192 11.7327 11.7572 15.0706 21.0118 47.6321 62.0707 48.4945 38.6041 47.1668 60.4052 63.1288 63.135 66.9696 65.5495
+
+## Second way
+
+## In cpol.cc
+const int NSTATIONS=2; // 5 ARA stations + ARIANNA SP
+  const int minstation=1; // which to start with
+  const int maxstation=1; // which to end with
+double horizontal_distances[NSTATIONS]={2353., 3199.};//{1257.,2353.,3146.,3199.,5179.8892,653.804525};
+  string snames[NSTATIONS]={"A2", "A4"};//{"A1","A2","A3","A4","A5","ARIANNA"};
+//    {38754., 51051.}, // in feet
+    {35481., 45369.},
+//    {32200., 51053.},
+    {35478., 56737.},
+//    {32356., 39746.}
+double vmax[2][NSTATIONS]={{40., 40.}//{{100.,40.,40.,40.,40.,100.},
+  //double vmax[2][NSTATIONS]={{400.,400.,400.,400.,100.,25.},
+  //double vmax[2][NSTATIONS]={{10.,10.,10.,10.,1.,1.},
+             //          {100.,100.,100.,100.,100.,100.}};
+           /*{100.,40.,40.,40.,40.,100.}*/};
+double pmax[2][NSTATIONS]={{1.E5, 1.E5},{1.E5, 1.E5}}; /*{{1.E5,1.E5,1.E5,1.E5,1.E5,1.E5},{1.E5,1.E5,1.E5,1.E5,1.E5,1.E5}}*/;
+
+## In fitting.cc
+vector<string> filenames = {"/users/PAS0654/jflaherty13/forAlan/spiceRecoData/A4_spiceReco.root"}
+
+## Run with: ./fit.exe 0 0 0 0 1 0 1
+
+## Results when using A4 data
+Elements of psi_median_model:
+4.41868 6.86183 6.64204 4.59539 6.35536 9.5112 7.80994 7.84075 10.0349 13.8647 34.066 52.2523 34.9924 26.043 33.5751 49.5686 53.4469 53.3871 59.0613 56.8384
