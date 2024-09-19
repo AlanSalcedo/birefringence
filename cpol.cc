@@ -147,10 +147,27 @@ std::vector<Double_t> computeEpsilonDifferences(TGraph* gepsilon1_tx, TGraph* ge
         Double_t depth = fit_depths[i];
 	//cout << "depths: " << depth << endl;
         double epsilon_tx = getEpsilonAtDepth(gepsilon1_tx, depth);
-	//cout << "epsilon_tx: " << epsilon_tx << endl;
+//	cout << "epsilon_tx: " << epsilon_tx << endl;
         double epsilon_rx = getEpsilonAtDepth(gepsilon1_rx, depth);
+//  cout << "epsilon_rx: " << epsilon_rx << endl;
         epsilon_differences.push_back(epsilon_tx - epsilon_rx);
     }
+		// let's print this bullshit
+		
+		cout << "epsilon_rx: ";
+		for (int i = 0; i < num_depths; ++i) {
+        Double_t depth = fit_depths[i];
+        double epsilon_rx = getEpsilonAtDepth(gepsilon1_rx, depth);
+				cout << epsilon_rx << ", ";// << endl;
+    }
+		cout << endl;
+		cout << "epsilon_tx: ";
+		for (int i = 0; i < num_depths; ++i) {
+        Double_t depth = fit_depths[i];
+        double epsilon_tx = getEpsilonAtDepth(gepsilon1_tx, depth);
+				cout << epsilon_tx << ", ";// << endl;
+    }
+		cout << endl;
     return epsilon_differences;
 }
 
@@ -192,15 +209,15 @@ int psiModel(int argc, char** argv, const Double_t* par_fit, Double_t* &fit_dept
   const int DORAYTRACING=1;
   
 	// MACHTAY changing number of stations to 1 pls work dammit
-  const int NSTATIONS=2; // 5 ARA stations + ARIANNA SP
-  const int minstation=1; // which to start with
-  const int maxstation=1; // which to end with
+  const int NSTATIONS=6; // 5 ARA stations + ARIANNA SP
+  const int minstation=Station_Fit; // which to start with
+  const int maxstation=Station_Fit; // which to end with
   int igreatestdepth[NSTATIONS];
   int imostshallowdepth[NSTATIONS];
 	// MACHTAY LOOK HERE
 	// Changing array to just have 1 distance
-  double horizontal_distances[NSTATIONS]={2353., 3199.};//{1257.,2353.,3146.,3199.,5179.8892,653.804525};
-  string snames[NSTATIONS]={"A2", "A4"};//{"A1","A2","A3","A4","A5","ARIANNA"};
+  double horizontal_distances[NSTATIONS]={1257.,2353.,3146.,3199.,5179.8892,653.804525};
+  string snames[NSTATIONS]={"A1","A2","A3","A4","A5","ARIANNA"};
   // from geoff's github, for ARIANNA station 51:
   // r = 653.804524 # meters
   // seems to be distance to arianna from spicecore.
@@ -299,15 +316,15 @@ int psiModel(int argc, char** argv, const Double_t* par_fit, Double_t* &fit_dept
     //{35460.52631578947, 56710.52631578947},
 
     // these are reading off the surveyor's figure
-//    {38754., 51051.}, // in feet
+    {38754., 51051.}, // in feet
     {35481., 45369.},
-//    {32200., 51053.},
+    {32200., 51053.},
     {35478., 56737.},
-//    {32356., 39746.}, // from Kaeli
+    {32356., 39746.}, // from Kaeli
     //{pulser_coords[0]+horizontal_distances[5]/MFT*cos(PHI_ARIANNA) ,
     //pulser_coords[1]+horizontal_distances[5]/MFT*sin(PHI_ARIANNA) }
     // these are from geoff's github.
-//    {41153.,50381.75}
+    {41153.,50381.75}
   };
 
   //cout << "station_coords of ARIANNA is " << station_coords[5][0] << "\t" << station_coords[5][1] << "\n";
@@ -337,7 +354,7 @@ int psiModel(int argc, char** argv, const Double_t* par_fit, Double_t* &fit_dept
   double deltan_exp[6];
   double deltan_obs[6];
   double station[6]={1,2,3,4,5,6};
-  double station_depths[6]={-80.,-196.,-180.,-180.,-180.,-1.}; // always forget which is 100m.
+  double station_depths[6]={-80.,-180.,-180.,-180.,-180.,-1.}; // always forget which is 100m.
   double zeroes[6]={0.};
   double deltan_obs_err[6]={0.};
   
@@ -3809,9 +3826,167 @@ psi_median_model = new Double_t[epsilon_differences.size()];  // Allocate memory
 std::copy(epsilon_differences.begin(), epsilon_differences.end(), psi_median_model);  // Copy data into the array
 std::cout << "Elements of psi_median_model:" << std::endl;
     for (size_t i = 0; i < epsilon_differences.size(); ++i) {
-        std::cout << psi_median_model[i] << " ";
+        std::cout << psi_median_model[i] << ", ";
     }
     std::cout << std::endl;
+		//      TCanvas *c24=makePretty2Panel();
+      TCanvas *c24=new TCanvas("c24","c24",1600,800);
+      c24->Divide(2,1);
+      //c24->SetLeftMargin(0.15);
+      //c24->SetBottomMargin(0.15);
+      c24->cd(1);
+      c24->SaveAs("/users/PAS0654/machtay1/Alan_Birefringence/birefringence_2/plots/epsilon_plot.png");
+gPad->SetLeftMargin(0.15);
+      gPad->SetBottomMargin(0.15);
+      gPad->SetRightMargin(0.01);
+      TH2D *h24a=new TH2D("","",100,-1600.,-600.,100,-90.,90.);
+      titles(h24a, "", "Pulser height (m)", "#epsilon_{ 1}^{ T}");
+
+      //      h24a->GetXaxis()->SetTitle("Pulser height (m)");
+      h24a->GetXaxis()->SetNdivisions(504);
+      h24a->GetYaxis()->SetNdivisions(504);
+      // h24a->GetYaxis()->SetTitle("#epsilon_{1,T}, #epsilon_{2,T}");
+      //h24a->GetXaxis()->SetTitleOffset(0.6);
+      //h24a->GetYaxis()->SetTitleOffset(0.6);
+      //h24a->GetXaxis()->SetTitleSize(0.08);
+      //h24a->GetYaxis()->SetTitleSize(0.07);
+
+      h24a->Draw();
+      auto legend24 = new TLegend(0.18,0.2,0.36,0.54);
+      legend24->SetBorderSize(0);
+      legend24->SetTextSize(0.04);
+      for (int istations=minstation;istations<=maxstation;istations++) {
+	//if (istations!=5) {
+	  gepsilon1_tx[istations]->SetLineColor(icolors[istations]);
+	  gepsilon1_tx[istations]->SetLineWidth(2);
+	  gepsilon1_tx[istations]->Draw("lsame");
+	  gepsilon2_tx[istations]->SetLineColor(icolors[istations]);
+	  gepsilon2_tx[istations]->SetLineWidth(2);
+	  gepsilon2_tx[istations]->SetLineStyle(kDashed);
+	  //gepsilon2_tx[istations]->Draw("al");
+	  gepsilon1_tx[istations]->SetName(snames[istations].c_str());	
+	  legend24->AddEntry(snames[istations].c_str(),snames[istations].c_str(),"l");	
+	  //}
+      }
+      c24->cd(2);
+      gPad->SetLeftMargin(0.15);
+      gPad->SetBottomMargin(0.15);
+      gPad->SetRightMargin(0.01);
+      TH2D *h26a=new TH2D("","",100,-1600.,-600.,100,-90.,90.);
+      
+      auto legend26 = new TLegend(0.7,0.2,0.9,0.4);
+
+      titles(h26a, "", "Pulser height (m)", "#epsilon_{ 1}^{ R}");
+
+      //      h26a->GetXaxis()->SetTitle("Pulser height (m)");
+      h26a->GetXaxis()->SetNdivisions(504);
+      h26a->GetYaxis()->SetNdivisions(504);
+      // h26a->GetYaxis()->SetTitle("#epsilon_{1,R}, #epsilon_{2,R}");
+      // h26a->GetXaxis()->SetTitleOffset(0.6);
+      // h26a->GetYaxis()->SetTitleOffset(0.6);
+      // h26a->GetXaxis()->SetTitleSize(0.08);
+      // h26a->GetYaxis()->SetTitleSize(0.08);
+      h26a->Draw();
+      legend26->SetBorderSize(0);
+      legend26->SetTextSize(0.05);
+      for (int istations=minstation;istations<=maxstation;istations++) {
+	//if (istations!=5) {
+	gepsilon1_rx[istations]->SetLineColor(icolors[istations]);
+	gepsilon1_rx[istations]->SetLineWidth(2);
+	gepsilon1_rx[istations]->Draw("lsame");
+	gepsilon2_rx[istations]->SetLineColor(icolors[istations]);
+	gepsilon2_rx[istations]->SetLineWidth(2);
+	gepsilon2_rx[istations]->SetLineStyle(kDashed);
+	//gepsilon2_rx[istations]->Draw("lsame");	
+	gepsilon1_rx[istations]->SetName(snames[istations].c_str());	
+	legend26->AddEntry(snames[istations].c_str(),snames[istations].c_str(),"l");	
+	//}
+      }
+      legend26->Draw("same");
+			string sdir="/users/PAS0654/machtay1/Alan_Birefringence/birefringence_2/plots/";
+
+      string sname=sdir+"epsilons_sidebyside.png";
+      c24->Print(sname.c_str());
+
+      TCanvas *c24b=new TCanvas("c24b","c24b",1600,800);
+      c24b->Divide(2,1);
+      //c24->SetLeftMargin(0.15);
+      //c24->SetBottomMargin(0.15);
+      c24b->cd(1);
+      gPad->SetLeftMargin(0.18);
+      gPad->SetBottomMargin(0.17);
+      gPad->SetRightMargin(0.01);
+      TH2D *h24b=new TH2D("","",100,-1600.,-600.,100,-0.15,0.15);
+      titles(h24b, "", "Pulser height (m)", "#epsilon_{ 1}^{ T} - #epsilon_{ 2}^{ T} (^{o})");
+
+      //      h24a->GetXaxis()->SetTitle("Pulser height (m)");
+      h24b->GetXaxis()->SetNdivisions(504);
+      h24b->GetYaxis()->SetNdivisions(504);
+      
+      // h24a->GetYaxis()->SetTitle("#epsilon_{1,T}, #epsilon_{2,T}");
+      h24b->GetXaxis()->SetTitleOffset(1.2);
+      h24b->GetYaxis()->SetTitleOffset(1.7);
+      //h24a->GetXaxis()->SetTitleSize(0.08);
+      //h24a->GetYaxis()->SetTitleSize(0.07);
+
+      h24b->Draw();
+      auto legend24b = new TLegend(0.18,0.2,0.36,0.64);
+      auto legend26b = new TLegend(0.67,0.52,0.93,0.89);
+      auto legend26c = new TLegend(0.67,0.12,0.93,0.22);
+      legend24b->SetBorderSize(0);
+      legend24b->SetTextSize(0.04);
+      legend26b->SetBorderSize(0);
+      legend26b->SetTextSize(0.05);
+      legend26c->SetBorderSize(0);
+      legend26c->SetTextSize(0.05);
+      for (int istations=minstation;istations<=maxstation;istations++) {
+	//if (istations==5) {
+	  gdiffepsilon_tx[istations]->SetLineColor(icolors[istations]);
+	  gdiffepsilon_tx[istations]->SetLineWidth(2);
+	  gdiffepsilon_tx[istations]->Draw("lsame");
+	  //	  gdiffepsilon_tx[istations]->Draw("al");
+	  legend24b->AddEntry(snames[istations].c_str(),snames[istations].c_str(),"l");	
+	  if (istations<5)
+	    legend26b->AddEntry(gdiffepsilon_rx[istations],snames[istations].c_str(),"l");
+	  else if (istations==5)
+	    legend26c->AddEntry(gdiffepsilon_rx[istations],snames[istations].c_str(),"l");	
+	  //}
+      }
+      //      legend24->Draw("same");
+      
+      c24b->cd(2);
+      gPad->SetLeftMargin(0.18);
+      gPad->SetBottomMargin(0.17);
+      gPad->SetRightMargin(0.01);
+      TH2D *h26b=new TH2D("","",100,-1600.,-600.,100,-0.05,0.05);
+      
+      titles(h26b, "", "Pulser height (m)", "#epsilon_{ 1}^{ R} - #epsilon_{ 2}^{ R} (^{o})");
+
+      //      h26a->GetXaxis()->SetTitle("Pulser height (m)");
+
+      h26b->GetXaxis()->SetNdivisions(504);
+      h26b->GetYaxis()->SetNdivisions(504);
+      // h26a->GetYaxis()->SetTitle("#epsilon_{1,R}, #epsilon_{2,R}");
+      // h26a->GetXaxis()->SetTitleOffset(0.6);
+      h26b->GetYaxis()->SetTitleOffset(1.70);
+      h26b->GetXaxis()->SetTitleOffset(1.2);
+      // h26a->GetYaxis()->SetTitleSize(0.08);
+      h26b->Draw();
+
+      for (int istations=minstation;istations<=maxstation;istations++) {
+	//if (istations!=5) {
+	gdiffepsilon_rx[istations]->SetLineColor(icolors[istations]);
+	gdiffepsilon_rx[istations]->SetLineWidth(2);
+	gdiffepsilon_rx[istations]->Draw("lsame");
+	
+
+	//}
+      }
+      legend26b->Draw("same");      
+      legend26c->Draw("same");
+      c24b->Print(sname.c_str());
+
+
 return 0;                                                                                                                                                                           
 
 
@@ -3824,15 +3999,16 @@ return 0;
     
 
 	// MACHTAY changed to have proper length for 1 station
-  double vmax[2][NSTATIONS]={{40., 40.}//{{100.,40.,40.,40.,40.,100.},
+  double vmax[2][NSTATIONS]={{100.,40.,40.,40.,40.,100.},
   //double vmax[2][NSTATIONS]={{400.,400.,400.,400.,100.,25.},
   //double vmax[2][NSTATIONS]={{10.,10.,10.,10.,1.,1.},
 			       //		       {100.,100.,100.,100.,100.,100.}};
-		       /*{100.,40.,40.,40.,40.,100.}*/}; // MACHTAY uncomment block to revert
+		       {100.,40.,40.,40.,40.,100.}}; 
     //double vmax[6]={500.,1500.,1000.,1500.,4000.,10.};
    
 	// MACHTAY change these lengths too
-  double pmax[2][NSTATIONS]={{1.E5, 1.E5},{1.E5, 1.E5}}; /*{{1.E5,1.E5,1.E5,1.E5,1.E5,1.E5},{1.E5,1.E5,1.E5,1.E5,1.E5,1.E5}}*/;
+  double pmax[2][NSTATIONS]={{1.E5,1.E5,1.E5,1.E5,1.E5,1.E5},
+           {1.E5,1.E5,1.E5,1.E5,1.E5,1.E5}};
 
 
   //  for (int i=0;i<NSTATIONS;i++) {
@@ -4348,8 +4524,9 @@ return 0;
   string sbiaxial[NAXIAL]={"isotropic_","uniaxial_",""};
   string sconstant[NCONSTANT]={"","constant_"};
  
-  string sdir="/users/PAS0654/machtay1/Alan_Birefringence/birefringence_2/plots/";// + sconstant[CONSTANTINDICATRIX] + sbiaxial[BIAXIAL+1] + to_string((int)(freq/1.E6)) + "MHz_angletx" + to_string(CROSSPOLANGLE_TX_INT) + "_anglerx" + to_string(CROSSPOLANGLE_RX_INT) + "/";
-  string sname=sdir+"c1.png";
+  //string sdir="/users/PAS0654/machtay1/Alan_Birefringence/birefringence_2/plots/";// + sconstant[CONSTANTINDICATRIX] + sbiaxial[BIAXIAL+1] + to_string((int)(freq/1.E6)) + "MHz_angletx" + to_string(CROSSPOLANGLE_TX_INT) + "_anglerx" + to_string(CROSSPOLANGLE_RX_INT) + "/";
+	cout << "TRYING TO MAKE THE GOD DAMN PLOTS!!!" << endl;
+  //string sname=sdir+"c1.png";
   c1->Print(sname.c_str());
   cout << "just printed c1.\n";
   TCanvas *c1b=new TCanvas("c1b","c1b",800,800);
@@ -4363,7 +4540,7 @@ return 0;
   sname=sdir+"c1b.png";
   c1b->Print(sname.c_str());
   cout << "printed c1b.\n";
-	c1b->SaveAs("../plots/Fig_6.png");
+	c1b->SaveAs("/users/PAS0654/machtay1/Alan_Birefringence/birefringence_2/plots/Fig_6.png");
 
 
   TCanvas *c3=new TCanvas("c3","c3",800,800);
@@ -4684,7 +4861,7 @@ return 0;
     legend26a->Draw("same");
     sname=sdir+"sumphase.png";
     c9->Print(sname.c_str());
-    c9->SaveAs("sumphase.jpg");	
+    c9->SaveAs("/users/PAS0654/machtay1/Alan_Birefringence/birefringence_2/plots/sumphase.jpg");	
 
     TCanvas *c9a=new TCanvas("c9a","c9a",800,800);   
     c9a->Divide(2,3);
@@ -5279,6 +5456,7 @@ TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
       //h20->Draw();
       //      for (int istations=0;istations<NSTATIONS;istations++) {
       for (int istations=minstation;istations<=maxstation;istations++) {
+							cout << "********************I'M HERE********************" << endl;
 	c20->cd(NSTATIONS+istations+1);
 
 	gtxdepth_theta2_Sclock[istations]->SetLineColor(icolors[istations]);
@@ -5373,6 +5551,7 @@ TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
 
 
       for (int istations=minstation;istations<=maxstation;istations++) {
+							cout << "***************In this damn loop!****************" << endl;
 	c23->cd(NSTATIONS+istations+1);
 
 	h23b->Draw();
@@ -5392,12 +5571,14 @@ TCanvas *c11f=new TCanvas("c11f","c11f",800,800);
  
 
 
+			/*
       //      TCanvas *c24=makePretty2Panel();
       TCanvas *c24=new TCanvas("c24","c24",1600,800);
       c24->Divide(2,1);
       //c24->SetLeftMargin(0.15);
       //c24->SetBottomMargin(0.15);
       c24->cd(1);
+      c24->SaveAs("/users/PAS0654/machtay1/Alan_Birefringence/birefringence_2/plots/epsilon_plot.png");
 gPad->SetLeftMargin(0.15);
       gPad->SetBottomMargin(0.15);
       gPad->SetRightMargin(0.01);
@@ -5436,6 +5617,7 @@ gPad->SetLeftMargin(0.15);
       gPad->SetLeftMargin(0.15);
       gPad->SetBottomMargin(0.15);
       gPad->SetRightMargin(0.01);
+			
       TH2D *h26a=new TH2D("","",100,-1600.,-600.,100,-10.,70.);
       
       auto legend26 = new TLegend(0.55,0.5,0.88,0.8);
@@ -5548,7 +5730,7 @@ gPad->SetLeftMargin(0.15);
       legend26c->Draw("same");      
       sname=sdir+"diffepsilons_sidebyside.png";
       c24b->Print(sname.c_str());
-
+*/
 
 
 
