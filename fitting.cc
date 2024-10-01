@@ -15,6 +15,7 @@
 #include <string>
 #include <iostream>
 #include <cmath>
+#include <numeric>
 
 using namespace std;
 
@@ -84,6 +85,7 @@ struct ChiSquareContext {
   Double_t* A4_psi_median;
 	Double_t* A4_psi_errors;
 	Int_t FIT_MODE;
+	Double_t avg_err;
 	ofstream logFile;
 };
 
@@ -93,7 +95,7 @@ ChiSquareContext* gContext = nullptr;
 // This function will calculate the chi-squared for us
 using Double_t = double;
 using Int_t = int;
-double chiSquared(Double_t* fitData, Double_t* measuredData, Long64_t nEntries, Double_t* errors, Int_t FIT_MODE) {
+double chiSquared(Double_t* fitData, Double_t* measuredData, Long64_t nEntries, Double_t* errors, Int_t FIT_MODE, Double_t avg_err) {
 
     // initialize the chi-squared to start
 				cout << "Actual data: ";
@@ -102,7 +104,8 @@ double chiSquared(Double_t* fitData, Double_t* measuredData, Long64_t nEntries, 
 		double denom = 0.0;
     for (int i = 0; i < nEntries; i++) {
 				if(FIT_MODE == 0){
-								denom = (measuredData[i] - errors[i])*(measuredData[i] - errors[i]);
+								denom = (errors[i])*(errors[i]);
+								
 				}
 				else
 				{
@@ -114,23 +117,33 @@ double chiSquared(Double_t* fitData, Double_t* measuredData, Long64_t nEntries, 
 				if(denom != 0){
 								chi2 += (abs(fitData[i]) - abs(measuredData[i]))*(abs(fitData[i]) - abs(measuredData[i]))/denom;
 				}
+				else{
+								chi2 += (abs(fitData[i]) - abs(measuredData[i]))*(abs(fitData[i]) - abs(measuredData[i]))/(avg_err*avg_err);
+				}
 				cout << measuredData[i] << ", ";
 					}
 						cout << endl;
 						cout << "Errors : ";
 						for (int i = 0; i < nEntries; i++) {
-								cout << measuredData[i] - errors[i] << ", ";
+								if (errors[i] != 0){
+												cout << errors[i] << ", ";
+								}
+								else{
+												cout << avg_err << ", ";
+								}
 					}	
 						cout << endl;
 		return chi2;
 }
 
 // This function will get the chi-squared given an input model
-double getChiSquared(int argc, char** argv, const Double_t* fit_parameters, Double_t* median_psi_model, Double_t* A4_depths, int Station, Long64_t num_entries, Double_t* A4_psi_median, Double_t* A4_psi_errors, Int_t FIT_MODE){
+double getChiSquared(int argc, char** argv, const Double_t* fit_parameters, Double_t* median_psi_model, Double_t* A4_depths, int Station, Long64_t num_entries, Double_t* A4_psi_median, Double_t* A4_psi_errors, Int_t FIT_MODE, Double_t avg_err){
 
 		ChiSquareContext* context = gContext;
     int result = psiModel(argc, argv, fit_parameters, A4_depths, median_psi_model, Station, num_entries);
-		double chi2 = chiSquared(median_psi_model, A4_psi_median, num_entries, A4_psi_errors, FIT_MODE);
+		double chi2 = chiSquared(median_psi_model, A4_psi_median, num_entries, A4_psi_errors, FIT_MODE, avg_err);
+		// Let's get rid of events with 0 error
+		// Here, by "get rid of", I mean give them the average error
 		cout << "chi-squared: " << chi2 << endl;
 		for(int i = 0; i < 4; i++){
 			cout << "fit parameter " << i+1 << ": " << fit_parameters[i] << endl;
@@ -148,7 +161,7 @@ void chiSquareFunction(Int_t& npar, Double_t* grad, Double_t& fval, Double_t* pa
 
 //				  Int_t fit_mode = FIT_MODE;
 	// Calculate the chi-squared value
-	fval = chiSquared(context->median_psi_model, context->A4_psi_median, context->num_entries, context->A4_psi_errors, context->FIT_MODE);
+	fval = chiSquared(context->median_psi_model, context->A4_psi_median, context->num_entries, context->A4_psi_errors, context->FIT_MODE, context->avg_err);
 
 	// let's get the chi squared and the corresponding fit parameters
 	cout << "chi-squared: " << fval << " | parameters: " << endl;
@@ -246,6 +259,7 @@ int main(int argc, char** argv) {
 //								cout << "A" << (i+1)*2 << " num entries: " << psi_medians[i] << endl;
 
             }
+								vector<Double_t> avg(NUM_STATIONS, 0.0);
 						// Let me print out the depths from the measured data:
 						for(int j = 0; j < NUM_STATIONS; j++){
 										cout << "First filename: " << filenames[j] << endl;
@@ -259,11 +273,14 @@ int main(int argc, char** argv) {
 												cout << psi_medians[j][i] << ", ";
 									}
 										cout << endl;
-										cout << "A" << (j+1) << " pulser max: ";
+										cout << "A" << (j+1) << " errors: ";
 										for (int i = 0; i < numEntries[j]; i++) {
+												Psi_errors[j][i] = psi_medians[j][i] - Psi_errors[j][i];
 												cout <<  Psi_errors[j][i] << ", ";
-									}
+										}
 										cout << endl;
+								double sum = accumulate(Psi_errors[j], Psi_errors[j] + numEntries[j], 0.0);
+								avg[j] = sum/static_cast<double>(numEntries[j]);
 				    }
 				auto mid = high_resolution_clock::now(); // start time
 				cout << "Mid time: " << duration_cast<microseconds>(mid - start).count()/(1e6) << endl;
@@ -362,7 +379,7 @@ int main(int argc, char** argv) {
 								//cout << "Station: " << station << endl;
 				//    int result = psiModel(argc, argv, par_fits[i].data(), pulserDepths[i], psi_median_models[i], station, numEntries[i]);
 				// For doing fit
-						chiSquared += getChiSquared(argc, argv, par_fits[i].data(), psi_median_models[i], pulserDepths[i], station, numEntries[i], psi_medians[i], Psi_errors[i], FIT_MODE);
+						chiSquared += getChiSquared(argc, argv, par_fits[i].data(), psi_median_models[i], pulserDepths[i], station, numEntries[i], psi_medians[i], Psi_errors[i], FIT_MODE, avg[i]);
 						totalDataPoints += numEntries[i];
             auto END = high_resolution_clock::now();
             auto duration = duration_cast<microseconds>(END - START);
